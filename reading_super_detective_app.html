@@ -1,0 +1,1531 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reading Super Detective - P2 English Self-Study App</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Font: Fredoka / Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Canvas Confetti -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            blue: '#4F46E5',
+                            yellow: '#F59E0B',
+                            green: '#10B981',
+                            pink: '#EC4899',
+                            purple: '#8B5CF6',
+                            sky: '#0EA5E9',
+                            bg: '#F0F9FF'
+                        }
+                    },
+                    fontFamily: {
+                        fredoka: ['Fredoka', 'sans-serif'],
+                        sans: ['Inter', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Fredoka', 'Inter', sans-serif;
+            background-color: #F0F9FF;
+            user-select: none;
+        }
+        .text-passage {
+            font-family: 'Inter', sans-serif;
+            line-height: 1.8;
+        }
+        .highlight-keyword {
+            background-color: #FEF08A;
+            border-bottom: 2px dashed #CA8A04;
+            padding: 0 4px;
+            border-radius: 4px;
+            font-weight: 600;
+        }
+        .highlight-target {
+            background-color: #BAE6FD;
+            border: 2px solid #0284C7;
+            padding: 2px 6px;
+            border-radius: 6px;
+            animation: pulse-glow 2s infinite;
+        }
+        @keyframes pulse-glow {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(14, 165, 233, 0.4); }
+            50% { box-shadow: 0 0 0 8px rgba(14, 165, 233, 0); }
+        }
+        .badge-card {
+            transition: transform 0.2s;
+        }
+        .badge-card:hover {
+            transform: translateY(-4px);
+        }
+    </style>
+</head>
+<body class="min-h-screen text-slate-800 flex flex-col justify-between">
+
+    <!-- Top Navigation Header -->
+    <header class="bg-white border-b-4 border-indigo-200 sticky top-0 z-30 shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
+            <div class="flex items-center space-x-3 cursor-pointer" onclick="app.navTo('dashboard')">
+                <div class="w-11 h-11 bg-indigo-600 rounded-2xl flex items-center justify-center text-white text-2xl shadow-md transform -rotate-3">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl md:text-2xl font-bold text-indigo-900 leading-none">Reading Super Detective</h1>
+                    <p class="text-xs text-indigo-500 font-medium mt-0.5">Primary 2 English Practice</p>
+                </div>
+            </div>
+
+            <div class="flex items-center space-x-3 md:space-x-6">
+                <!-- Stars Counter -->
+                <div class="flex items-center bg-amber-50 border-2 border-amber-300 px-3 py-1.5 rounded-full shadow-inner">
+                    <i class="fa-solid fa-star text-amber-500 text-lg mr-1.5 animate-bounce"></i>
+                    <span id="star-count" class="font-bold text-amber-900 text-lg">0</span>
+                </div>
+                <!-- Badges Indicator -->
+                <div class="hidden sm:flex items-center bg-purple-50 border-2 border-purple-300 px-3 py-1.5 rounded-full">
+                    <i class="fa-solid fa-award text-purple-600 text-lg mr-1.5"></i>
+                    <span id="badge-count" class="font-bold text-purple-900 text-sm">0/4 Badges</span>
+                </div>
+                <!-- Audio Toggle -->
+                <button id="sound-toggle" onclick="app.toggleSound()" class="w-10 h-10 bg-slate-100 hover:bg-slate-200 border-2 border-slate-300 rounded-full flex items-center justify-center text-slate-700 transition">
+                    <i id="sound-icon" class="fa-solid fa-volume-high"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Dynamic Content Container -->
+    <main id="app-container" class="max-w-7xl mx-auto px-4 py-6 flex-grow w-full">
+        <!-- Rendered dynamically by JavaScript -->
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-white border-t border-slate-200 py-4 text-center text-sm text-slate-500">
+        <p>🔍 <b>Reading Super Detective App</b> | Designed for P2 English Readers | Po On Commercial Association Wan Ho Kan Primary School</p>
+    </footer>
+
+    <!-- Global Audio Synthesis Helper -->
+    <script>
+        // Sound Effects Controller (Web Audio API)
+        class SoundFX {
+            constructor() {
+                this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                this.enabled = true;
+            }
+
+            playCorrect() {
+                if (!this.enabled) return;
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(523.25, now); // C5
+                osc.frequency.setValueAtTime(659.25, now + 0.1); // E5
+                osc.frequency.setValueAtTime(783.99, now + 0.2); // G5
+                osc.frequency.setValueAtTime(1046.50, now + 0.3); // C6
+                gain.gain.setValueAtTime(0.2, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.6);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start(now);
+                osc.stop(now + 0.6);
+            }
+
+            playWrong() {
+                if (!this.enabled) return;
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(220, now); // A3
+                osc.frequency.setValueAtTime(196, now + 0.15); // G3
+                gain.gain.setValueAtTime(0.2, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start(now);
+                osc.stop(now + 0.4);
+            }
+
+            playStar() {
+                if (!this.enabled) return;
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(880, now);
+                osc.frequency.setValueAtTime(1760, now + 0.1);
+                gain.gain.setValueAtTime(0.2, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start(now);
+                osc.stop(now + 0.3);
+            }
+        }
+
+        const sfx = new SoundFX();
+
+        // -------------------------------------------------------------
+        // APP DATABASE: SIX TEXTS + DETECTIVE QUESTIONS & SKILL ANCHORS
+        // -------------------------------------------------------------
+        const CHAPTERS_DATA = [
+            {
+                id: 'ch1_t1',
+                chapter: 'Chapter 1: At My School',
+                title: "Kim's First Day",
+                type: "Story",
+                icon: "fa-school",
+                color: "indigo",
+                lines: [
+                    { num: 1, text: "It is Kim's first day at Rainbow School." },
+                    { num: 2, text: "Leo is showing her around the school." },
+                    { num: 3, speaker: "Leo", text: "This is the library. It is on the second floor." },
+                    { num: 4, speaker: "Kim", text: "What can we do here?" },
+                    { num: 5, speaker: "Leo", text: "We can read and borrow books here." },
+                    { num: 6, speaker: "Kim", text: "Is there a hall?" },
+                    { num: 7, speaker: "Leo", text: "Yes, there is. It is on the ground floor." },
+                    { num: 8, speaker: "Leo", text: "Let's go upstairs. This is the art room." },
+                    { num: 9, speaker: "Kim", text: "Wow! The art room is so colourful!" },
+                    { num: 10, speaker: "Leo", text: "It is on the fourth floor. We can draw and paint here." }
+                ],
+                questions: [
+                    {
+                        id: 'q1',
+                        type: 'ordering',
+                        prompt: 'Put the events in order. Write 1, 2, 3.',
+                        items: [
+                            { id: 'item_art', text: 'Kim sees the art room.', correctOrder: 3, lineRef: 8 },
+                            { id: 'item_lib', text: 'Leo shows Kim the library.', correctOrder: 1, lineRef: 3 },
+                            { id: 'item_hall', text: 'Kim asks about the hall.', correctOrder: 2, lineRef: 6 }
+                        ],
+                        keywords: ['order', 'first', 'next', 'last'],
+                        tip: "Scan the text from line 1 to line 10 to see what happens first, second, and third!"
+                    },
+                    {
+                        id: 'q2',
+                        type: 'mcq',
+                        prompt: '1. Where is the hall?',
+                        options: [
+                            { key: 'A', text: 'ground floor', isCorrect: true },
+                            { key: 'B', text: 'second floor', isCorrect: false },
+                            { key: 'C', text: 'fourth floor', isCorrect: false }
+                        ],
+                        keywords: ['Where', 'hall'],
+                        targetLine: 7,
+                        explanation: 'In Line 7, Leo says "It is on the ground floor."'
+                    },
+                    {
+                        id: 'q3',
+                        type: 'mcq',
+                        prompt: '2. Line 2: "Leo is showing her around the school." Who does "her" refer to?',
+                        options: [
+                            { key: 'A', text: 'Leo', isCorrect: false },
+                            { key: 'B', text: 'Kim', isCorrect: true },
+                            { key: 'C', text: 'a teacher', isCorrect: false }
+                        ],
+                        keywords: ['Line 2', 'her', 'refer to'],
+                        targetLine: 2,
+                        explanation: 'Read Line 1 first: "It is Kim\'s first day". Then Line 2 says Leo shows "her" (Kim).'
+                    },
+                    {
+                        id: 'q4',
+                        type: 'mcq',
+                        prompt: '3. Line 9: "The art room is so colourful!" The word "colourful" means',
+                        options: [
+                            { key: 'A', text: 'very dark', isCorrect: false },
+                            { key: 'B', text: 'very small', isCorrect: false },
+                            { key: 'C', text: 'full of colours', isCorrect: true }
+                        ],
+                        keywords: ['Line 9', 'colourful', 'means'],
+                        targetLine: 9,
+                        explanation: 'Colourful has the word "colour" inside! It means full of colours.'
+                    },
+                    {
+                        id: 'q5',
+                        type: 'mcq',
+                        prompt: '4. This story is about',
+                        options: [
+                            { key: 'A', text: "Kim's art lesson", isCorrect: false },
+                            { key: 'B', text: "Kim's first day at a new school", isCorrect: true },
+                            { key: 'C', text: "Leo's library book", isCorrect: false }
+                        ],
+                        keywords: ['story', 'about', 'main idea'],
+                        targetLine: 1,
+                        explanation: 'Line 1 tells us: "It is Kim\'s first day at Rainbow School."'
+                    },
+                    {
+                        id: 'q6',
+                        type: 'short_answer',
+                        prompt: '5. Who is new at Rainbow School?',
+                        template: '[INPUT] is new at Rainbow School.',
+                        answers: ['Kim', 'kim'],
+                        keywords: ['Who', 'new', 'Rainbow School'],
+                        targetLine: 1,
+                        explanation: 'Line 1 mentions Kim\'s first day.'
+                    },
+                    {
+                        id: 'q7',
+                        type: 'short_answer_double',
+                        prompt: '6. What can students do in the art room?',
+                        template: 'Students can [INPUT1] and [INPUT2] in the art room.',
+                        validPairs: [
+                            ['draw', 'paint'],
+                            ['paint', 'draw']
+                        ],
+                        keywords: ['What', 'do', 'art room'],
+                        targetLine: 10,
+                        explanation: 'Line 10 says: "We can draw and paint here."'
+                    }
+                ]
+            },
+            {
+                id: 'ch1_t2',
+                chapter: 'Chapter 1: At My School',
+                title: 'Bright Sun School Open Day',
+                type: "Poster",
+                icon: "fa-bullhorn",
+                color: "amber",
+                lines: [
+                    { num: 1, text: "Come and visit our school this Saturday!" },
+                    { num: 2, text: "G/F Hall: Watch our school band play music." },
+                    { num: 3, text: "1/F Art Room: Make puppets with our art teacher." },
+                    { num: 4, text: "2/F Library: Listen to a story at 10 o'clock." },
+                    { num: 5, text: "3/F Computer Room: Play fun maths games." },
+                    { num: 6, text: "The tuck shop is on the ground floor." },
+                    { num: 7, text: "You can buy drinks and snacks there." }
+                ],
+                questions: [
+                    {
+                        id: 'q1',
+                        type: 'matching',
+                        prompt: 'Where is it? Write the letter (A, B, C, or D).',
+                        items: [
+                            { label: 'G/F', correct: 'C', hint: 'Hall (Line 2)' },
+                            { label: '1/F', correct: 'D', hint: 'Art Room (Line 3)' },
+                            { label: '2/F', correct: 'B', hint: 'Library (Line 4)' },
+                            { label: '3/F', correct: 'A', hint: 'Computer Room (Line 5)' }
+                        ],
+                        optionsMap: { A: 'Computer Room', B: 'Library', C: 'Hall', D: 'Art Room' },
+                        keywords: ['Where', 'Floor', 'G/F', '1/F', '2/F', '3/F'],
+                        explanation: 'Scan the line headers on the poster!'
+                    },
+                    {
+                        id: 'q2',
+                        type: 'mcq',
+                        prompt: '1. Where can you make puppets?',
+                        options: [
+                            { key: 'A', text: 'in the hall', isCorrect: false },
+                            { key: 'B', text: 'in the art room', isCorrect: true },
+                            { key: 'C', text: 'in the library', isCorrect: false }
+                        ],
+                        keywords: ['Where', 'make puppets'],
+                        targetLine: 3,
+                        explanation: 'Line 3: "1/F Art Room: Make puppets with our art teacher."'
+                    },
+                    {
+                        id: 'q3',
+                        type: 'mcq',
+                        prompt: '2. Line 7: "You can buy drinks and snacks there." Where does "there" refer to?',
+                        options: [
+                            { key: 'A', text: 'the hall', isCorrect: false },
+                            { key: 'B', text: 'the computer room', isCorrect: false },
+                            { key: 'C', text: 'the tuck shop', isCorrect: true }
+                        ],
+                        keywords: ['Line 7', 'there', 'refer to'],
+                        targetLine: 6,
+                        explanation: 'Read Line 6 first: "The tuck shop is on the ground floor." Line 7 then says "there" (tuck shop).'
+                    },
+                    {
+                        id: 'q4',
+                        type: 'mcq',
+                        prompt: '3. Line 2: "Watch our school band play music." A "band" is',
+                        options: [
+                            { key: 'A', text: 'a group of people who play music', isCorrect: true },
+                            { key: 'B', text: 'a big room', isCorrect: false },
+                            { key: 'C', text: 'a kind of snack', isCorrect: false }
+                        ],
+                        keywords: ['Line 2', 'band', 'play music'],
+                        targetLine: 2,
+                        explanation: 'A band plays music together!'
+                    },
+                    {
+                        id: 'q5',
+                        type: 'mcq',
+                        prompt: '4. The poster wants people to',
+                        options: [
+                            { key: 'A', text: 'buy snacks', isCorrect: false },
+                            { key: 'B', text: 'come to the Open Day', isCorrect: true },
+                            { key: 'C', text: 'make puppets at home', isCorrect: false }
+                        ],
+                        keywords: ['poster', 'wants people to', 'title'],
+                        targetLine: 1,
+                        explanation: 'Line 1 says "Come and visit our school this Saturday!" for Open Day.'
+                    },
+                    {
+                        id: 'q6',
+                        type: 'short_answer_double',
+                        prompt: '5. Where is the library? What can you do there?',
+                        template: 'The library is on the [INPUT1] floor. You can listen to a [INPUT2] there.',
+                        validPairs: [
+                            ['second', 'story'],
+                            ['2nd', 'story'],
+                            ['2/F', 'story']
+                        ],
+                        keywords: ['library', 'floor', 'listen to'],
+                        targetLine: 4,
+                        explanation: 'Line 4: "2/F Library: Listen to a story at 10 o\'clock."'
+                    }
+                ]
+            },
+            {
+                id: 'ch2_t1',
+                chapter: 'Chapter 2: Please Be Good',
+                title: 'Our Classroom Rules',
+                type: "Pamphlet",
+                icon: "fa-clipboard-list",
+                color: "emerald",
+                lines: [
+                    { num: 1, text: "Hello, J2 students! I am Miss Chan, your class teacher." },
+                    { num: 2, text: "Let me tell you the rules for our classroom." },
+                    { num: 3, text: "Our classroom is very bright. It has big windows and lots of lights." },
+                    { num: 4, text: "You must keep it clean. You mustn't litter." },
+                    { num: 5, text: "You must put up your hand before you talk." },
+                    { num: 6, text: "You mustn't shout in the classroom." },
+                    { num: 7, text: "At lunchtime, you must eat in your seat." },
+                    { num: 8, text: "Remember, good students always follow the classroom rules!" }
+                ],
+                questions: [
+                    {
+                        id: 'q1',
+                        type: 'mcq',
+                        prompt: '1. Who writes this pamphlet?',
+                        options: [
+                            { key: 'A', text: 'the principal', isCorrect: false },
+                            { key: 'B', text: 'a J2 student', isCorrect: false },
+                            { key: 'C', text: 'Miss Chan', isCorrect: true }
+                        ],
+                        keywords: ['Who writes', 'pamphlet'],
+                        targetLine: 1,
+                        explanation: 'Line 1 says: "I am Miss Chan, your class teacher."'
+                    },
+                    {
+                        id: 'q2',
+                        type: 'mcq',
+                        prompt: '2. Line 4: "You must keep it clean." What does "it" refer to?',
+                        options: [
+                            { key: 'A', text: 'the classroom', isCorrect: true },
+                            { key: 'B', text: 'the window', isCorrect: false },
+                            { key: 'C', text: 'the lunch', isCorrect: false }
+                        ],
+                        keywords: ['Line 4', 'it', 'refer to'],
+                        targetLine: 3,
+                        explanation: 'Line 3 introduces "Our classroom". Line 4 says keep "it" clean.'
+                    },
+                    {
+                        id: 'q3',
+                        type: 'mcq',
+                        prompt: '3. Line 3: "Our classroom is very bright." The word "bright" means',
+                        options: [
+                            { key: 'A', text: 'dark', isCorrect: false },
+                            { key: 'B', text: 'noisy', isCorrect: false },
+                            { key: 'C', text: 'full of light', isCorrect: true }
+                        ],
+                        keywords: ['Line 3', 'bright', 'means'],
+                        targetLine: 3,
+                        explanation: 'Line 3 says: "It has big windows and lots of lights."'
+                    },
+                    {
+                        id: 'q4',
+                        type: 'mcq',
+                        prompt: '4. Miss Chan wants to tell the students',
+                        options: [
+                            { key: 'A', text: 'the rules for the classroom', isCorrect: true },
+                            { key: 'B', text: 'what to eat for lunch', isCorrect: false },
+                            { key: 'C', text: 'the classroom has big windows', isCorrect: false }
+                        ],
+                        keywords: ['Miss Chan', 'wants to tell'],
+                        targetLine: 2,
+                        explanation: 'Line 2: "Let me tell you the rules for our classroom."'
+                    },
+                    {
+                        id: 'q5',
+                        type: 'must_fill',
+                        prompt: 'Write must or mustn\'t:',
+                        items: [
+                            { text: '5. You ____ shout in the classroom.', answer: "mustn't", lineRef: 6 },
+                            { text: '6. You ____ put up your hand before you talk.', answer: 'must', lineRef: 5 },
+                            { text: '7. You ____ litter.', answer: "mustn't", lineRef: 4 },
+                            { text: '8. You ____ eat in your seat at lunchtime.', answer: 'must', lineRef: 7 }
+                        ],
+                        keywords: ['must', "mustn't"],
+                        explanation: 'Check lines 4, 5, 6, and 7 to find what is allowed or not allowed!'
+                    }
+                ]
+            },
+            {
+                id: 'ch2_t2',
+                chapter: 'Chapter 2: Please Be Good',
+                title: 'Welcome to Our School Garden!',
+                type: "Poster",
+                icon: "fa-seedling",
+                color: "teal",
+                lines: [
+                    { num: 1, text: "Our garden is a nice place. There are lots of pretty flowers." },
+                    { num: 2, text: "You must walk on the path." },
+                    { num: 3, text: "You mustn't pick the flowers." },
+                    { num: 4, text: "You mustn't litter. Please put rubbish in the bin." },
+                    { num: 5, text: "Do you see the fish in the pond? You mustn't feed them." },
+                    { num: 6, text: "You must be gentle with the plants. Touch them softly." },
+                    { num: 7, text: "Let's keep our garden beautiful!" }
+                ],
+                questions: [
+                    {
+                        id: 'q1',
+                        type: 'checkbox_matrix',
+                        prompt: 'Tick must or mustn\'t for each action:',
+                        items: [
+                            { action: 'pick the flowers', correct: 'mustn\'t', lineRef: 3 },
+                            { action: 'walk on the path', correct: 'must', lineRef: 2 },
+                            { action: 'feed the fish', correct: 'mustn\'t', lineRef: 5 },
+                            { action: 'put rubbish in the bin', correct: 'must', lineRef: 4 }
+                        ],
+                        keywords: ['must', "mustn't"],
+                        explanation: 'Scan lines 2-5 for the rules!'
+                    },
+                    {
+                        id: 'q2',
+                        type: 'mcq',
+                        prompt: '1. Where must you walk?',
+                        options: [
+                            { key: 'A', text: 'on the grass', isCorrect: false },
+                            { key: 'B', text: 'on the path', isCorrect: true },
+                            { key: 'C', text: 'in the pond', isCorrect: false }
+                        ],
+                        keywords: ['Where', 'must', 'walk'],
+                        targetLine: 2,
+                        explanation: 'Line 2: "You must walk on the path."'
+                    },
+                    {
+                        id: 'q3',
+                        type: 'mcq',
+                        prompt: '2. Line 5: "You mustn\'t feed them." What does "them" refer to?',
+                        options: [
+                            { key: 'A', text: 'the flowers', isCorrect: false },
+                            { key: 'B', text: 'the fish', isCorrect: true },
+                            { key: 'C', text: 'the students', isCorrect: false }
+                        ],
+                        keywords: ['Line 5', 'them', 'refer to'],
+                        targetLine: 5,
+                        explanation: 'Line 5 says: "Do you see the fish in the pond? You mustn\'t feed them."'
+                    },
+                    {
+                        id: 'q4',
+                        type: 'mcq',
+                        prompt: '3. Line 6: "You must be gentle with the plants." The word "gentle" means',
+                        options: [
+                            { key: 'A', text: 'fast and loud', isCorrect: false },
+                            { key: 'B', text: 'angry', isCorrect: false },
+                            { key: 'C', text: 'soft and careful', isCorrect: true }
+                        ],
+                        keywords: ['Line 6', 'gentle', 'means'],
+                        targetLine: 6,
+                        explanation: 'Line 6 explains gentle: "Touch them softly."'
+                    },
+                    {
+                        id: 'q5',
+                        type: 'mcq',
+                        prompt: '4. The poster wants us to',
+                        options: [
+                            { key: 'A', text: 'take care of the garden', isCorrect: true },
+                            { key: 'B', text: 'feed the fish', isCorrect: false },
+                            { key: 'C', text: 'pick the flowers', isCorrect: false }
+                        ],
+                        keywords: ['poster', 'wants us to'],
+                        targetLine: 7,
+                        explanation: 'Line 7: "Let\'s keep our garden beautiful!"'
+                    },
+                    {
+                        id: 'q6',
+                        type: 'short_answer',
+                        prompt: '5. What must you do with your rubbish?',
+                        template: 'You must put your rubbish in the [INPUT].',
+                        answers: ['bin', 'rubbish bin'],
+                        keywords: ['rubbish', 'put'],
+                        targetLine: 4,
+                        explanation: 'Line 4: "Please put rubbish in the bin."'
+                    }
+                ]
+            },
+            {
+                id: 'ch3_t1',
+                chapter: 'Chapter 3: Caring for Others',
+                title: "Bear's Picnic",
+                type: "Story",
+                icon: "fa-basket-shopping",
+                color: "sky",
+                lines: [
+                    { num: 1, text: "Bear and Rabbit go on a picnic in the park." },
+                    { num: 2, speaker: "Bear", text: "I'm hungry. Let's eat some sandwiches." },
+                    { num: 3, speaker: "Rabbit", text: "I'm not hungry. I'm thirsty. She drinks some juice." },
+                    { num: 4, text: "After lunch, they are tired. They take a short rest under a tree." },
+                    { num: 5, text: "When they wake up, the basket is empty. The food is gone!" },
+                    { num: 6, speaker: "Rabbit", text: "Oh no! Where is our food?" },
+                    { num: 7, speaker: "Fox", text: "They see Fox. He has their cake. \"Yummy!\" he says." },
+                    { num: 8, speaker: "Bear", text: "Bear is angry. \"Stop! That is our food, Fox!\"" },
+                    { num: 9, speaker: "Owl", text: "Then Owl flies down. \"Fox, you must say sorry,\" says Owl." },
+                    { num: 10, text: "Fox says sorry. They all share the cake together." }
+                ],
+                questions: [
+                    {
+                        id: 'q1',
+                        type: 'true_false',
+                        prompt: 'Read the sentences. Select True (T) or False (F):',
+                        items: [
+                            { statement: 'a. Rabbit feels hungry.', answer: false, lineRef: 3, explain: 'Line 3 says Rabbit is NOT hungry, she is thirsty.' },
+                            { statement: 'b. Bear and Rabbit take a rest.', answer: true, lineRef: 4, explain: 'Line 4 says they take a short rest under a tree.' },
+                            { statement: 'c. Fox takes the cake.', answer: true, lineRef: 7, explain: 'Line 7 says Fox has their cake.' },
+                            { statement: 'd. Fox does not say sorry.', answer: false, lineRef: 10, explain: 'Line 10 says Fox says sorry.' }
+                        ],
+                        keywords: ['True', 'False']
+                    },
+                    {
+                        id: 'q2',
+                        type: 'mcq',
+                        prompt: '1. Line 6: "Oh no! Where is our food?" How does Rabbit feel?',
+                        options: [
+                            { key: 'A', text: 'happy', isCorrect: false },
+                            { key: 'B', text: 'worried', isCorrect: true },
+                            { key: 'C', text: 'bored', isCorrect: false },
+                            { key: 'D', text: 'tired', isCorrect: false }
+                        ],
+                        keywords: ['Line 6', 'Where is our food', 'feel'],
+                        targetLine: 6,
+                        explanation: 'When your food is missing, you feel worried!'
+                    },
+                    {
+                        id: 'q3',
+                        type: 'mcq',
+                        prompt: '2. Line 7: "He has their cake." Who does "He" refer to?',
+                        options: [
+                            { key: 'A', text: 'Fox', isCorrect: true },
+                            { key: 'B', text: 'Bear', isCorrect: false },
+                            { key: 'C', text: 'Owl', isCorrect: false }
+                        ],
+                        keywords: ['Line 7', 'He', 'refer to'],
+                        targetLine: 7,
+                        explanation: 'Line 7: "They see Fox. He has their cake." He = Fox.'
+                    },
+                    {
+                        id: 'q4',
+                        type: 'mcq',
+                        prompt: '3. Line 5: "The basket is empty." The word "empty" means',
+                        options: [
+                            { key: 'A', text: 'full of food', isCorrect: false },
+                            { key: 'B', text: 'very big', isCorrect: false },
+                            { key: 'C', text: 'has nothing inside', isCorrect: true }
+                        ],
+                        keywords: ['Line 5', 'empty', 'means'],
+                        targetLine: 5,
+                        explanation: 'Line 5 says "The food is gone!" so empty means has nothing inside.'
+                    },
+                    {
+                        id: 'q5',
+                        type: 'mcq',
+                        prompt: '4. Fox wants to ____ the food.',
+                        options: [
+                            { key: 'A', text: 'eat', isCorrect: true },
+                            { key: 'B', text: 'cook', isCorrect: false },
+                            { key: 'C', text: 'buy', isCorrect: false }
+                        ],
+                        keywords: ['Fox', 'wants to'],
+                        targetLine: 7,
+                        explanation: 'Fox says "Yummy!" so he wants to eat it.'
+                    },
+                    {
+                        id: 'q6',
+                        type: 'short_answer',
+                        prompt: '5. How does Bear feel in line 8?',
+                        template: 'Bear feels [INPUT].',
+                        answers: ['angry'],
+                        keywords: ['Line 8', 'Bear', 'feel'],
+                        targetLine: 8,
+                        explanation: 'Line 8: "Bear is angry."'
+                    },
+                    {
+                        id: 'q7',
+                        type: 'short_answer',
+                        prompt: '6. Who helps Bear and Rabbit?',
+                        template: '[INPUT] helps Bear and Rabbit.',
+                        answers: ['Owl', 'owl'],
+                        keywords: ['Who', 'helps'],
+                        targetLine: 9,
+                        explanation: 'Line 9: "Owl flies down... Fox, you must say sorry."'
+                    }
+                ]
+            },
+            {
+                id: 'ch3_t2',
+                chapter: 'Chapter 3: Caring for Others',
+                title: 'Caring Week',
+                type: "Poster",
+                icon: "fa-hand-holding-heart",
+                color: "rose",
+                lines: [
+                    { num: 1, text: "This week is Caring Week at Sunny School!" },
+                    { num: 2, text: "Here are some ways to care for others." },
+                    { num: 3, text: "Your friend is hungry. Share your bread with her." },
+                    { num: 4, text: "Your brother is thirsty. Get him some water." },
+                    { num: 5, text: "Your grandma is tired. Let her sit down and take a rest." },
+                    { num: 6, text: "Your classmates are bored. Read comics with them." },
+                    { num: 7, text: "Your friend is sad. Give him a big hug." },
+                    { num: 8, text: "Caring for others makes everyone happy!" }
+                ],
+                questions: [
+                    {
+                        id: 'q1',
+                        type: 'matching',
+                        prompt: 'How can you help? Match the problem to the action letter:',
+                        items: [
+                            { label: 'hungry friend', correct: 'C', lineRef: 3 },
+                            { label: 'thirsty brother', correct: 'D', lineRef: 4 },
+                            { label: 'tired grandma', correct: 'A', lineRef: 5 },
+                            { label: 'bored classmates', correct: 'B', lineRef: 6 }
+                        ],
+                        optionsMap: { A: 'take a rest', B: 'read comics', C: 'some bread', D: 'some water' },
+                        keywords: ['How can you help', 'Match'],
+                        explanation: 'Scan lines 3, 4, 5, and 6!'
+                    },
+                    {
+                        id: 'q2',
+                        type: 'mcq',
+                        prompt: '1. Your friend is sad. What can you do?',
+                        options: [
+                            { key: 'A', text: 'give him a hug', isCorrect: true },
+                            { key: 'B', text: 'take a rest', isCorrect: false },
+                            { key: 'C', text: 'get some water', isCorrect: false }
+                        ],
+                        keywords: ['sad', 'friend', 'what can you do'],
+                        targetLine: 7,
+                        explanation: 'Line 7: "Your friend is sad. Give him a big hug."'
+                    },
+                    {
+                        id: 'q3',
+                        type: 'mcq',
+                        prompt: '2. Line 4: "Get him some water." Who does "him" refer to?',
+                        options: [
+                            { key: 'A', text: 'your friend', isCorrect: false },
+                            { key: 'B', text: 'your brother', isCorrect: true },
+                            { key: 'C', text: 'your grandma', isCorrect: false }
+                        ],
+                        keywords: ['Line 4', 'him', 'refer to'],
+                        targetLine: 4,
+                        explanation: 'Line 4 starts with: "Your brother is thirsty. Get him some water."'
+                    },
+                    {
+                        id: 'q4',
+                        type: 'mcq',
+                        prompt: '3. Line 7: "Give him a big hug." A "hug" is',
+                        options: [
+                            { key: 'A', text: 'a kind of food', isCorrect: false },
+                            { key: 'B', text: 'putting your arms around someone', isCorrect: true },
+                            { key: 'C', text: 'a kind of drink', isCorrect: false }
+                        ],
+                        keywords: ['Line 7', 'hug', 'means'],
+                        targetLine: 7,
+                        explanation: 'A hug is putting your arms around someone to show love or comfort.'
+                    },
+                    {
+                        id: 'q5',
+                        type: 'mcq',
+                        prompt: '4. This poster wants us to',
+                        options: [
+                            { key: 'A', text: 'eat more bread', isCorrect: false },
+                            { key: 'B', text: 'read more comics', isCorrect: false },
+                            { key: 'C', text: 'care for others', isCorrect: true }
+                        ],
+                        keywords: ['poster', 'wants us to'],
+                        targetLine: 8,
+                        explanation: 'The title is "Caring Week" and Line 8 says "Caring for others makes everyone happy!"'
+                    },
+                    {
+                        id: 'q6',
+                        type: 'short_answer',
+                        prompt: '5. Your grandma is tired. What can you do?',
+                        template: 'Let her sit down and take a [INPUT].',
+                        answers: ['rest', 'short rest'],
+                        keywords: ['grandma', 'tired', 'do'],
+                        targetLine: 5,
+                        explanation: 'Line 5: "Your grandma is tired. Let her sit down and take a rest."'
+                    }
+                ]
+            }
+        ];
+
+        // -------------------------------------------------------------
+        // MAIN APP CONTROLLER
+        // -------------------------------------------------------------
+        class ReadingApp {
+            constructor() {
+                this.stars = parseInt(localStorage.getItem('detective_stars') || '0');
+                this.completedTexts = JSON.parse(localStorage.getItem('detective_completed') || '[]');
+                this.currentView = 'dashboard';
+                this.currentTextId = null;
+                this.activeQuestionIdx = 0;
+                this.highlightedLine = null;
+                this.userAnswers = {};
+
+                // Badges State
+                this.badges = [
+                    { id: 'kw_hunter', name: 'Keyword Hunter', desc: 'Find keywords in 3 questions', icon: 'fa-crosshairs', color: 'bg-amber-500', unlocked: false },
+                    { id: 'scanner', name: 'Text Scanner', desc: 'Locate 5 correct line numbers', icon: 'fa-eye', color: 'bg-blue-500', unlocked: false },
+                    { id: 'context', name: 'Context Master', desc: 'Solve 3 pronoun reference questions', icon: 'fa-link', color: 'bg-emerald-500', unlocked: false },
+                    { id: 'super_det', name: 'Super Detective', desc: 'Complete all 6 texts', icon: 'fa-crown', color: 'bg-purple-600', unlocked: false }
+                ];
+                this.updateBadgeState();
+            }
+
+            init() {
+                this.updateHeaderStats();
+                this.navTo('dashboard');
+            }
+
+            updateHeaderStats() {
+                document.getElementById('star-count').innerText = this.stars;
+                const count = this.badges.filter(b => b.unlocked).length;
+                document.getElementById('badge-count').innerText = `${count}/${this.badges.length} Badges`;
+                localStorage.setItem('detective_stars', this.stars.toString());
+                localStorage.setItem('detective_completed', JSON.stringify(this.completedTexts));
+            }
+
+            updateBadgeState() {
+                if (this.completedTexts.length >= 1) this.badges[0].unlocked = true;
+                if (this.completedTexts.length >= 3) this.badges[1].unlocked = true;
+                if (this.completedTexts.length >= 5) this.badges[2].unlocked = true;
+                if (this.completedTexts.length >= 6) this.badges[3].unlocked = true;
+            }
+
+            toggleSound() {
+                sfx.enabled = !sfx.enabled;
+                const icon = document.getElementById('sound-icon');
+                if (sfx.enabled) {
+                    icon.className = 'fa-solid fa-volume-high';
+                } else {
+                    icon.className = 'fa-solid fa-volume-xmark text-red-500';
+                }
+            }
+
+            addStars(count) {
+                this.stars += count;
+                sfx.playStar();
+                this.updateHeaderStats();
+            }
+
+            navTo(view, textId = null) {
+                this.currentView = view;
+                this.currentTextId = textId;
+                const container = document.getElementById('app-container');
+
+                if (view === 'dashboard') {
+                    container.innerHTML = this.renderDashboard();
+                } else if (view === 'guide') {
+                    container.innerHTML = this.renderGuide();
+                } else if (view === 'practice' && textId) {
+                    this.activeQuestionIdx = 0;
+                    this.highlightedLine = null;
+                    this.userAnswers = {};
+                    container.innerHTML = this.renderPracticeView(textId);
+                }
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            }
+
+            // -------------------------------------------------------------
+            // DASHBOARD VIEW
+            // -------------------------------------------------------------
+            renderDashboard() {
+                return `
+                    <div class="space-y-8 animate-fade-in">
+                        <!-- Hero Welcome Banner -->
+                        <div class="bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-500 rounded-3xl p-6 md:p-8 text-white shadow-xl flex flex-col md:flex-row items-center justify-between relative overflow-hidden">
+                            <div class="z-10 space-y-3 max-w-xl text-center md:text-left">
+                                <span class="bg-white/20 text-white text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider">Primary 2 English</span>
+                                <h2 class="text-2xl md:text-4xl font-extrabold leading-tight">Welcome, Super Reading Detective! 🕵️‍♂️</h2>
+                                <p class="text-indigo-100 text-sm md:text-base">Master three secret reading skills: find keywords, scan the passage, and read back & forth to get top marks!</p>
+                                <div class="pt-2 flex flex-wrap gap-3 justify-center md:justify-start">
+                                    <button onclick="app.navTo('guide')" class="bg-amber-400 hover:bg-amber-300 text-amber-950 font-bold px-5 py-2.5 rounded-2xl shadow-lg transition transform hover:-translate-y-0.5 flex items-center space-x-2">
+                                        <i class="fa-solid fa-lightbulb"></i>
+                                        <span>Learn Detective Skills</span>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="mt-6 md:mt-0 z-10 flex-shrink-0">
+                                <div class="w-28 h-28 md:w-36 md:h-36 bg-white/10 rounded-full flex items-center justify-center border-4 border-white/30 backdrop-blur-md">
+                                    <i class="fa-solid fa-user-secret text-6xl text-amber-300"></i>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Detective Strategy Cards Summary -->
+                        <div>
+                            <h3 class="text-xl font-bold text-slate-800 mb-4 flex items-center">
+                                <i class="fa-solid fa-toolbox text-indigo-600 mr-2"></i> The 3 Super Reading Skills
+                            </h3>
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div class="bg-white p-4 rounded-2xl border-2 border-indigo-100 shadow-sm flex items-start space-x-3">
+                                    <div class="w-10 h-10 rounded-xl bg-amber-100 text-amber-600 flex items-center justify-center font-bold text-lg flex-shrink-0">1</div>
+                                    <div>
+                                        <h4 class="font-bold text-indigo-950">Spot Keywords</h4>
+                                        <p class="text-xs text-slate-600 mt-1">Circle important words in questions like <i>WHO, WHERE, WHAT, LINE #</i>.</p>
+                                    </div>
+                                </div>
+                                <div class="bg-white p-4 rounded-2xl border-2 border-indigo-100 shadow-sm flex items-start space-x-3">
+                                    <div class="w-10 h-10 rounded-xl bg-sky-100 text-sky-600 flex items-center justify-center font-bold text-lg flex-shrink-0">2</div>
+                                    <div>
+                                        <h4 class="font-bold text-indigo-950">Scan & Locate</h4>
+                                        <p class="text-xs text-slate-600 mt-1">Match keywords in the question with words or lines in the text.</p>
+                                    </div>
+                                </div>
+                                <div class="bg-white p-4 rounded-2xl border-2 border-indigo-100 shadow-sm flex items-start space-x-3">
+                                    <div class="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-600 flex items-center justify-center font-bold text-lg flex-shrink-0">3</div>
+                                    <div>
+                                        <h4 class="font-bold text-indigo-950">Read Back & Forth</h4>
+                                        <p class="text-xs text-slate-600 mt-1">Read 1 sentence before or after to solve pronoun clues ("he", "there").</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Reading Passages List -->
+                        <div>
+                            <div class="flex items-center justify-between mb-4">
+                                <h3 class="text-xl font-bold text-slate-800 flex items-center">
+                                    <i class="fa-solid fa-book-open text-indigo-600 mr-2"></i> Select a Text to Practice
+                                </h3>
+                                <span class="text-xs font-bold text-slate-500">${this.completedTexts.length} / 6 Completed</span>
+                            </div>
+
+                            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                ${CHAPTERS_DATA.map(text => {
+                                    const isDone = this.completedTexts.includes(text.id);
+                                    return `
+                                        <div onclick="app.navTo('practice', '${text.id}')" class="bg-white border-2 ${isDone ? 'border-emerald-400 bg-emerald-50/20' : 'border-slate-200'} hover:border-indigo-500 rounded-3xl p-5 shadow-sm hover:shadow-md transition cursor-pointer flex flex-col justify-between relative group">
+                                            ${isDone ? `<span class="absolute top-4 right-4 bg-emerald-500 text-white text-xs font-bold px-2.5 py-1 rounded-full"><i class="fa-solid fa-check mr-1"></i> Completed</span>` : ''}
+                                            <div>
+                                                <div class="flex items-center space-x-3 mb-3">
+                                                    <div class="w-10 h-10 rounded-2xl bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-lg group-hover:bg-indigo-600 group-hover:text-white transition">
+                                                        <i class="fa-solid ${text.icon}"></i>
+                                                    </div>
+                                                    <div>
+                                                        <span class="text-xs font-bold text-indigo-500 tracking-wide uppercase">${text.chapter}</span>
+                                                        <h4 class="font-bold text-lg text-slate-900 group-hover:text-indigo-600 transition leading-snug">${text.title}</h4>
+                                                    </div>
+                                                </div>
+                                                <p class="text-xs text-slate-500 mb-4">Format: <span class="font-semibold text-slate-700">${text.type}</span> • Questions: ${text.questions.length}</p>
+                                            </div>
+                                            <div class="pt-3 border-t border-slate-100 flex items-center justify-between text-xs font-bold text-indigo-600">
+                                                <span>Start Reading Mission</span>
+                                                <i class="fa-solid fa-arrow-right transform group-hover:translate-x-1 transition"></i>
+                                            </div>
+                                        </div>
+                                    `;
+                                }).join('')}
+                            </div>
+                        </div>
+
+                        <!-- Detective Badges Showcase -->
+                        <div class="bg-white rounded-3xl p-6 border-2 border-slate-200 shadow-sm">
+                            <h3 class="text-xl font-bold text-slate-800 mb-4 flex items-center">
+                                <i class="fa-solid fa-award text-amber-500 mr-2"></i> Detective Badges
+                            </h3>
+                            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                ${this.badges.map(b => `
+                                    <div class="badge-card p-4 rounded-2xl border border-slate-200 flex flex-col items-center text-center ${b.unlocked ? 'bg-amber-50/50 border-amber-300' : 'bg-slate-50 opacity-60'}">
+                                        <div class="w-12 h-12 rounded-full ${b.unlocked ? b.color : 'bg-slate-300'} text-white flex items-center justify-center text-xl mb-2 shadow-sm">
+                                            <i class="fa-solid ${b.icon}"></i>
+                                        </div>
+                                        <h4 class="font-bold text-sm text-slate-900">${b.name}</h4>
+                                        <p class="text-xs text-slate-500 mt-1">${b.desc}</p>
+                                        <span class="mt-2 text-[10px] font-bold px-2 py-0.5 rounded-full ${b.unlocked ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-600'}">
+                                            ${b.unlocked ? 'UNLOCKED' : 'LOCKED'}
+                                        </span>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            // -------------------------------------------------------------
+            // DETECTIVE SKILLS GUIDE VIEW
+            // -------------------------------------------------------------
+            renderGuide() {
+                return `
+                    <div class="max-w-4xl mx-auto space-y-6 animate-fade-in">
+                        <button onclick="app.navTo('dashboard')" class="bg-white border-2 border-slate-200 hover:border-indigo-400 text-slate-700 px-4 py-2 rounded-2xl font-bold text-sm transition flex items-center space-x-2">
+                            <i class="fa-solid fa-arrow-left"></i>
+                            <span>Back to Dashboard</span>
+                        </button>
+
+                        <div class="bg-white rounded-3xl p-6 md:p-8 border-2 border-indigo-100 shadow-sm space-y-8">
+                            <div class="text-center space-y-2">
+                                <span class="bg-indigo-100 text-indigo-700 font-bold px-3 py-1 rounded-full text-xs">Detective Training Handbook</span>
+                                <h2 class="text-3xl font-extrabold text-indigo-950">3 Secret Reading Superpowers</h2>
+                                <p class="text-slate-600 text-sm">How to answer reading comprehension questions like a top detective!</p>
+                            </div>
+
+                            <!-- Skill 1 -->
+                            <div class="p-5 rounded-2xl bg-amber-50 border-2 border-amber-200 space-y-3">
+                                <div class="flex items-center space-x-3">
+                                    <div class="w-10 h-10 rounded-xl bg-amber-500 text-white font-bold flex items-center justify-center text-lg">1</div>
+                                    <h3 class="text-xl font-bold text-amber-950">Skill 1: Highlight Question Keywords</h3>
+                                </div>
+                                <p class="text-slate-700 text-sm">Before reading the whole text, read the question first and look for key words:</p>
+                                <ul class="list-disc list-inside text-sm text-slate-700 space-y-1 pl-2">
+                                    <li><b>Question Words:</b> Who, Where, What, Why, How</li>
+                                    <li><b>Line Clues:</b> "Line 2", "Line 7"</li>
+                                    <li><b>Names & Places:</b> Kim, Rainbow School, Art Room</li>
+                                </ul>
+                                <div class="bg-white p-3 rounded-xl border border-amber-300 text-xs">
+                                    💡 <i>Example:</i> "Where is the <b>hall</b>?" ➡️ Keyword is <b>hall</b>!
+                                </div>
+                            </div>
+
+                            <!-- Skill 2 -->
+                            <div class="p-5 rounded-2xl bg-sky-50 border-2 border-sky-200 space-y-3">
+                                <div class="flex items-center space-x-3">
+                                    <div class="w-10 h-10 rounded-xl bg-sky-500 text-white font-bold flex items-center justify-center text-lg">2</div>
+                                    <h3 class="text-xl font-bold text-sky-950">Skill 2: Scan & Locate Text Keywords</h3>
+                                </div>
+                                <p class="text-slate-700 text-sm">Use your finger like a magnifying glass. Move quickly through lines to find the same words from the question.</p>
+                                <div class="bg-white p-3 rounded-xl border border-sky-300 text-xs">
+                                    💡 <i>Example:</i> Move line by line until you see "hall". Line 7 says: "It is on the ground floor."
+                                </div>
+                            </div>
+
+                            <!-- Skill 3 -->
+                            <div class="p-5 rounded-2xl bg-emerald-50 border-2 border-emerald-200 space-y-3">
+                                <div class="flex items-center space-x-3">
+                                    <div class="w-10 h-10 rounded-xl bg-emerald-500 text-white font-bold flex items-center justify-center text-lg">3</div>
+                                    <h3 class="text-xl font-bold text-emerald-950">Skill 3: Read Back & Forth (Pronouns)</h3>
+                                </div>
+                                <p class="text-slate-700 text-sm">When a question asks what <b>"her"</b>, <b>"it"</b>, or <b>"there"</b> means:</p>
+                                <ul class="list-disc list-inside text-sm text-slate-700 space-y-1 pl-2">
+                                    <li>Read <b>1 line BEFORE</b> the word!</li>
+                                    <li>The noun is almost always right before it!</li>
+                                </ul>
+                                <div class="bg-white p-3 rounded-xl border border-emerald-300 text-xs">
+                                    💡 <i>Example:</i> Line 1: "It is Kim's first day." Line 2: "Leo is showing <b>her</b> around." ➡️ "Her" means <b>Kim</b>!
+                                </div>
+                            </div>
+
+                            <div class="text-center">
+                                <button onclick="app.navTo('dashboard')" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-8 py-3 rounded-2xl shadow-md transition">
+                                    I'm Ready to Practice! 🚀
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            // -------------------------------------------------------------
+            // INTERACTIVE PRACTICE VIEW (SPLIT SCREEN PASSAGE + QUESTIONS)
+            // -------------------------------------------------------------
+            renderPracticeView(textId) {
+                const textData = CHAPTERS_DATA.find(t => t.id === textId);
+                if (!textData) return 'Text not found.';
+
+                const currentQ = textData.questions[this.activeQuestionIdx];
+
+                return `
+                    <div class="space-y-4">
+                        <!-- Top Navigation Bar for Quiz -->
+                        <div class="flex items-center justify-between bg-white px-4 py-3 rounded-2xl border border-slate-200 shadow-sm">
+                            <button onclick="app.navTo('dashboard')" class="text-slate-600 hover:text-indigo-600 font-bold text-xs md:text-sm flex items-center space-x-1.5">
+                                <i class="fa-solid fa-arrow-left"></i>
+                                <span>Exit Mission</span>
+                            </button>
+                            <div class="text-center">
+                                <span class="text-xs font-bold text-indigo-500 uppercase tracking-wider">${textData.chapter}</span>
+                                <h3 class="font-bold text-slate-900 text-sm md:text-base leading-tight">${textData.title}</h3>
+                            </div>
+                            <div class="text-xs font-bold bg-indigo-50 text-indigo-700 px-3 py-1.5 rounded-full border border-indigo-200">
+                                Question ${this.activeQuestionIdx + 1} / ${textData.questions.length}
+                            </div>
+                        </div>
+
+                        <!-- Main Split View Grid -->
+                        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                            
+                            <!-- LEFT COLUMN: PASSAGE PANEL (5 cols) -->
+                            <div class="lg:col-span-5 bg-white rounded-3xl p-5 border-2 border-slate-200 shadow-sm flex flex-col h-[520px] lg:h-[650px] sticky top-20">
+                                <div class="flex items-center justify-between border-b border-slate-100 pb-3 mb-3">
+                                    <div class="flex items-center space-x-2">
+                                        <i class="fa-solid fa-book text-indigo-600"></i>
+                                        <h4 class="font-bold text-slate-800 text-sm">Read Passage</h4>
+                                    </div>
+                                    <button onclick="app.readAloudText('${textData.id}')" class="text-xs font-bold text-indigo-600 hover:bg-indigo-50 px-2.5 py-1 rounded-lg border border-indigo-200 flex items-center space-x-1 transition">
+                                        <i class="fa-solid fa-volume-high"></i>
+                                        <span>Read Aloud</span>
+                                    </button>
+                                </div>
+
+                                <!-- Text Display Area with Line Numbers -->
+                                <div class="overflow-y-auto flex-grow pr-2 space-y-3 text-passage text-sm md:text-base">
+                                    ${textData.lines.map(line => {
+                                        const isHighlighted = this.highlightedLine === line.num;
+                                        return `
+                                            <div id="line-${line.num}" class="p-2 rounded-xl transition duration-300 flex items-start space-x-3 ${isHighlighted ? 'highlight-target' : 'hover:bg-slate-50'}">
+                                                <span class="text-xs font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-md flex-shrink-0 select-none">${line.num}</span>
+                                                <div class="text-slate-800">
+                                                    ${line.speaker ? `<b class="text-indigo-900">${line.speaker}:</b> ` : ''}
+                                                    <span>${line.text}</span>
+                                                </div>
+                                            </div>
+                                        `;
+                                    }).join('')}
+                                </div>
+
+                                <div class="mt-3 pt-3 border-t border-slate-100 text-center">
+                                    <span class="text-[11px] text-slate-400"><i class="fa-solid fa-info-circle mr-1"></i> Tap Detective Hints on questions to highlight lines!</span>
+                                </div>
+                            </div>
+
+                            <!-- RIGHT COLUMN: QUESTION & STRATEGY PANEL (7 cols) -->
+                            <div class="lg:col-span-7 bg-white rounded-3xl p-5 md:p-6 border-2 border-indigo-100 shadow-sm flex flex-col justify-between">
+                                <div>
+                                    <!-- Strategy Helper Bar -->
+                                    <div class="bg-amber-50 border border-amber-200 rounded-2xl p-3 mb-5 flex items-center justify-between">
+                                        <div class="flex items-center space-x-2 text-xs font-bold text-amber-900">
+                                            <i class="fa-solid fa-wand-magic-sparkles text-amber-500 text-sm"></i>
+                                            <span>Detective Coach Skill:</span>
+                                        </div>
+                                        <button onclick="app.showDetectiveHint('${textData.id}', ${this.activeQuestionIdx})" class="bg-amber-400 hover:bg-amber-500 text-amber-950 font-bold text-xs px-3 py-1.5 rounded-xl shadow-sm transition flex items-center space-x-1">
+                                            <i class="fa-solid fa-magnifying-glass"></i>
+                                            <span>Highlight Keywords & Text</span>
+                                        </button>
+                                    </div>
+
+                                    <!-- Question Content -->
+                                    <div class="space-y-4">
+                                        <h4 class="text-lg font-bold text-slate-900 leading-snug" id="question-prompt">
+                                            ${this.formatPromptWithKeywords(currentQ)}
+                                        </h4>
+
+                                        <!-- Render dynamic question input controls -->
+                                        <div id="question-input-area" class="pt-2">
+                                            ${this.renderQuestionType(currentQ)}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Feedback Explanation Container -->
+                                <div id="feedback-area" class="mt-4 hidden">
+                                    <!-- Populated dynamically -->
+                                </div>
+
+                                <!-- Question Navigation Controls -->
+                                <div class="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between">
+                                    <button onclick="app.prevQuestion()" ${this.activeQuestionIdx === 0 ? 'disabled class="opacity-40 cursor-not-allowed bg-slate-100 text-slate-400 px-4 py-2 rounded-xl text-xs font-bold"' : 'class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2 rounded-xl text-xs font-bold transition"'}>
+                                        <i class="fa-solid fa-arrow-left mr-1"></i> Prev Question
+                                    </button>
+
+                                    <button id="check-btn" onclick="app.checkAnswer('${textData.id}', ${this.activeQuestionIdx})" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-6 py-2.5 rounded-xl text-xs md:text-sm shadow-md transition transform hover:-translate-y-0.5">
+                                        Check Answer
+                                    </button>
+
+                                    <button onclick="app.nextQuestion('${textData.id}')" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2 rounded-xl text-xs font-bold transition">
+                                        Next <i class="fa-solid fa-arrow-right ml-1"></i>
+                                    </button>
+                                </div>
+
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            // Highlight Question Keywords helper
+            formatPromptWithKeywords(q) {
+                if (!q.keywords) return q.prompt;
+                let text = q.prompt;
+                q.keywords.forEach(kw => {
+                    const reg = new RegExp(`(${kw})`, 'gi');
+                    text = text.replace(reg, '<span class="highlight-keyword">$1</span>');
+                });
+                return text;
+            }
+
+            // Render interactive question inputs based on question type
+            renderQuestionType(q) {
+                if (q.type === 'mcq') {
+                    return `
+                        <div class="space-y-2.5">
+                            ${q.options.map((opt, i) => `
+                                <label class="flex items-center space-x-3 p-3.5 rounded-2xl border-2 border-slate-200 hover:border-indigo-400 cursor-pointer transition option-label hover:bg-slate-50">
+                                    <input type="radio" name="mcq_opt" value="${opt.key}" class="w-4 h-4 text-indigo-600 focus:ring-indigo-500">
+                                    <span class="w-7 h-7 rounded-full bg-indigo-50 text-indigo-700 font-bold text-xs flex items-center justify-center flex-shrink-0">${opt.key}</span>
+                                    <span class="font-medium text-slate-800 text-sm md:text-base">${opt.text}</span>
+                                </label>
+                            `).join('')}
+                        </div>
+                    `;
+                }
+
+                if (q.type === 'ordering') {
+                    return `
+                        <div class="space-y-3">
+                            <p class="text-xs text-slate-500">Select the correct sequence order (1, 2, or 3) for each event:</p>
+                            ${q.items.map((item, idx) => `
+                                <div class="flex items-center justify-between p-3 rounded-2xl border-2 border-slate-200 bg-slate-50/50">
+                                    <span class="font-medium text-slate-800 text-sm pr-2">${item.text}</span>
+                                    <select id="ord_${idx}" class="border-2 border-indigo-200 rounded-xl px-3 py-1.5 font-bold text-indigo-900 bg-white focus:outline-none focus:border-indigo-500 text-sm">
+                                        <option value="">-</option>
+                                        <option value="1">1</option>
+                                        <option value="2">2</option>
+                                        <option value="3">3</option>
+                                    </select>
+                                </div>
+                            `).join('')}
+                        </div>
+                    `;
+                }
+
+                if (q.type === 'matching') {
+                    return `
+                        <div class="space-y-3">
+                            <p class="text-xs text-slate-500">Match each location to its room code letter (A, B, C, or D):</p>
+                            ${q.items.map((item, idx) => `
+                                <div class="flex items-center justify-between p-3 rounded-2xl border-2 border-slate-200 bg-slate-50/50">
+                                    <span class="font-bold text-indigo-900 text-sm">${item.label}</span>
+                                    <select id="match_${idx}" class="border-2 border-indigo-200 rounded-xl px-3 py-1.5 font-bold text-indigo-900 bg-white focus:outline-none focus:border-indigo-500 text-sm">
+                                        <option value="">Choose Letter</option>
+                                        ${Object.keys(q.optionsMap).map(k => `<option value="${k}">${k} - ${q.optionsMap[k]}</option>`).join('')}
+                                    </select>
+                                </div>
+                            `).join('')}
+                        </div>
+                    `;
+                }
+
+                if (q.type === 'short_answer') {
+                    const parts = q.template.split('[INPUT]');
+                    return `
+                        <div class="p-4 rounded-2xl bg-indigo-50/50 border border-indigo-100 text-slate-800 text-base font-medium space-y-3">
+                            <div>
+                                ${parts[0]}
+                                <input type="text" id="short_ans_0" class="border-b-2 border-indigo-600 bg-white px-3 py-1 rounded-lg text-indigo-900 font-bold focus:outline-none focus:ring-2 focus:ring-indigo-400 inline-block w-36 mx-1 text-center" placeholder="type word">
+                                ${parts[1] || ''}
+                            </div>
+                        </div>
+                    `;
+                }
+
+                if (q.type === 'short_answer_double') {
+                    return `
+                        <div class="p-4 rounded-2xl bg-indigo-50/50 border border-indigo-100 text-slate-800 text-base font-medium leading-loose">
+                            ${q.template.replace('[INPUT1]', '<input type="text" id="short_ans_1" class="border-b-2 border-indigo-600 bg-white px-3 py-1 rounded-lg text-indigo-900 font-bold focus:outline-none focus:ring-2 focus:ring-indigo-400 inline-block w-28 mx-1 text-center" placeholder="word 1">').replace('[INPUT2]', '<input type="text" id="short_ans_2" class="border-b-2 border-indigo-600 bg-white px-3 py-1 rounded-lg text-indigo-900 font-bold focus:outline-none focus:ring-2 focus:ring-indigo-400 inline-block w-28 mx-1 text-center" placeholder="word 2">')}
+                        </div>
+                    `;
+                }
+
+                if (q.type === 'must_fill') {
+                    return `
+                        <div class="space-y-3">
+                            ${q.items.map((item, idx) => `
+                                <div class="p-3 rounded-2xl border-2 border-slate-200 bg-slate-50/50 flex flex-col sm:flex-row sm:items-center justify-between space-y-2 sm:space-y-0">
+                                    <span class="text-sm font-medium text-slate-800">${item.text}</span>
+                                    <select id="must_${idx}" class="border-2 border-indigo-200 rounded-xl px-3 py-1.5 font-bold text-indigo-900 bg-white focus:outline-none focus:border-indigo-500 text-sm">
+                                        <option value="">Select word</option>
+                                        <option value="must">must</option>
+                                        <option value="mustn't">mustn't</option>
+                                    </select>
+                                </div>
+                            `).join('')}
+                        </div>
+                    `;
+                }
+
+                if (q.type === 'checkbox_matrix') {
+                    return `
+                        <div class="space-y-2">
+                            ${q.items.map((item, idx) => `
+                                <div class="p-3 rounded-2xl border-2 border-slate-200 bg-slate-50/50 flex items-center justify-between">
+                                    <span class="text-sm font-medium text-slate-800">${item.action}</span>
+                                    <div class="flex items-center space-x-4">
+                                        <label class="inline-flex items-center cursor-pointer">
+                                            <input type="radio" name="mat_${idx}" value="must" class="w-4 h-4 text-emerald-600">
+                                            <span class="ml-1.5 text-xs font-bold text-emerald-700">must</span>
+                                        </label>
+                                        <label class="inline-flex items-center cursor-pointer">
+                                            <input type="radio" name="mat_${idx}" value="mustn't" class="w-4 h-4 text-rose-600">
+                                            <span class="ml-1.5 text-xs font-bold text-rose-700">mustn't</span>
+                                        </label>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    `;
+                }
+
+                if (q.type === 'true_false') {
+                    return `
+                        <div class="space-y-3">
+                            ${q.items.map((item, idx) => `
+                                <div class="p-3 rounded-2xl border-2 border-slate-200 bg-slate-50/50 flex flex-col sm:flex-row sm:items-center justify-between space-y-2 sm:space-y-0">
+                                    <span class="text-sm font-medium text-slate-800">${item.statement}</span>
+                                    <div class="flex items-center space-x-3">
+                                        <label class="inline-flex items-center px-3 py-1 rounded-xl border border-slate-300 bg-white cursor-pointer hover:bg-emerald-50">
+                                            <input type="radio" name="tf_${idx}" value="true" class="w-4 h-4 text-emerald-600">
+                                            <span class="ml-1.5 text-xs font-bold text-emerald-700">T (True)</span>
+                                        </label>
+                                        <label class="inline-flex items-center px-3 py-1 rounded-xl border border-slate-300 bg-white cursor-pointer hover:bg-rose-50">
+                                            <input type="radio" name="tf_${idx}" value="false" class="w-4 h-4 text-rose-600">
+                                            <span class="ml-1.5 text-xs font-bold text-rose-700">F (False)</span>
+                                        </label>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    `;
+                }
+
+                return '';
+            }
+
+            // -------------------------------------------------------------
+            // DETECTIVE HELPER: HIGHLIGHTS LINE AND SHOWS COACH POPUP
+            // -------------------------------------------------------------
+            showDetectiveHint(textId, qIdx) {
+                const textData = CHAPTERS_DATA.find(t => t.id === textId);
+                const q = textData.questions[qIdx];
+
+                let lineToHighlight = q.targetLine;
+                if (!lineToHighlight && q.items && q.items[0] && q.items[0].lineRef) {
+                    lineToHighlight = q.items[0].lineRef;
+                }
+
+                if (lineToHighlight) {
+                    this.highlightedLine = lineToHighlight;
+                    // Re-render passage view highlight
+                    const lineElem = document.getElementById(`line-${lineToHighlight}`);
+                    if (lineElem) {
+                        lineElem.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        lineElem.classList.add('highlight-target');
+                    }
+                }
+
+                // Show strategy popup banner
+                const feedbackArea = document.getElementById('feedback-area');
+                feedbackArea.className = 'mt-4 p-4 rounded-2xl bg-amber-50 border-2 border-amber-300 text-amber-950 text-sm animate-fade-in block';
+                feedbackArea.innerHTML = `
+                    <div class="flex items-start space-x-3">
+                        <i class="fa-solid fa-lightbulb text-amber-500 text-xl flex-shrink-0 mt-0.5"></i>
+                        <div class="space-y-1">
+                            <h5 class="font-bold text-amber-900">Detective Coach Hint:</h5>
+                            <p class="text-xs text-amber-800">${q.explanation || q.tip || 'Scan the highlighted text line on the left side to locate your answer key!'}</p>
+                        </div>
+                    </div>
+                `;
+            }
+
+            // -------------------------------------------------------------
+            // CHECK ANSWER LOGIC & DETECTIVE FEEDBACK
+            // -------------------------------------------------------------
+            checkAnswer(textId, qIdx) {
+                const textData = CHAPTERS_DATA.find(t => t.id === textId);
+                const q = textData.questions[qIdx];
+                let isCorrect = false;
+                let userDetail = '';
+
+                if (q.type === 'mcq') {
+                    const selected = document.querySelector('input[name="mcq_opt"]:checked');
+                    if (!selected) {
+                        alert('Please select an option first!');
+                        return;
+                    }
+                    const optKey = selected.value;
+                    const opt = q.options.find(o => o.key === optKey);
+                    isCorrect = opt ? opt.isCorrect : false;
+                } else if (q.type === 'ordering') {
+                    let matches = 0;
+                    q.items.forEach((item, idx) => {
+                        const val = parseInt(document.getElementById(`ord_${idx}`).value || '0');
+                        if (val === item.correctOrder) matches++;
+                    });
+                    isCorrect = (matches === q.items.length);
+                } else if (q.type === 'matching') {
+                    let matches = 0;
+                    q.items.forEach((item, idx) => {
+                        const val = document.getElementById(`match_${idx}`).value;
+                        if (val === item.correct) matches++;
+                    });
+                    isCorrect = (matches === q.items.length);
+                } else if (q.type === 'short_answer') {
+                    const val = (document.getElementById('short_ans_0').value || '').trim().toLowerCase();
+                    isCorrect = q.answers.map(a => a.toLowerCase()).includes(val);
+                } else if (q.type === 'short_answer_double') {
+                    const val1 = (document.getElementById('short_ans_1').value || '').trim().toLowerCase();
+                    const val2 = (document.getElementById('short_ans_2').value || '').trim().toLowerCase();
+                    isCorrect = q.validPairs.some(pair => pair[0].toLowerCase() === val1 && pair[1].toLowerCase() === val2);
+                } else if (q.type === 'must_fill') {
+                    let matches = 0;
+                    q.items.forEach((item, idx) => {
+                        const val = document.getElementById(`must_${idx}`).value;
+                        if (val === item.answer) matches++;
+                    });
+                    isCorrect = (matches === q.items.length);
+                } else if (q.type === 'checkbox_matrix') {
+                    let matches = 0;
+                    q.items.forEach((item, idx) => {
+                        const sel = document.querySelector(`input[name="mat_${idx}"]:checked`);
+                        if (sel && sel.value === item.correct) matches++;
+                    });
+                    isCorrect = (matches === q.items.length);
+                } else if (q.type === 'true_false') {
+                    let matches = 0;
+                    q.items.forEach((item, idx) => {
+                        const sel = document.querySelector(`input[name="tf_${idx}"]:checked`);
+                        if (sel && (sel.value === 'true') === item.answer) matches++;
+                    });
+                    isCorrect = (matches === q.items.length);
+                }
+
+                const feedbackArea = document.getElementById('feedback-area');
+                feedbackArea.classList.remove('hidden');
+
+                if (isCorrect) {
+                    sfx.playCorrect();
+                    confetti({ particleCount: 40, spread: 60, origin: { y: 0.7 } });
+                    this.addStars(2);
+
+                    feedbackArea.className = 'mt-4 p-4 rounded-2xl bg-emerald-50 border-2 border-emerald-300 text-emerald-950 text-sm animate-fade-in';
+                    feedbackArea.innerHTML = `
+                        <div class="flex items-start space-x-3">
+                            <div class="w-8 h-8 rounded-full bg-emerald-500 text-white flex items-center justify-center font-bold text-base flex-shrink-0">
+                                <i class="fa-solid fa-check"></i>
+                            </div>
+                            <div>
+                                <h5 class="font-bold text-emerald-900 text-base">Great Job, Detective! (+2 Stars ⭐)</h5>
+                                <p class="text-xs text-emerald-800 mt-1">${q.explanation || 'You spotted the correct answer using your reading skills!'}</p>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    sfx.playWrong();
+                    feedbackArea.className = 'mt-4 p-4 rounded-2xl bg-rose-50 border-2 border-rose-300 text-rose-950 text-sm animate-fade-in';
+                    feedbackArea.innerHTML = `
+                        <div class="flex items-start space-x-3">
+                            <div class="w-8 h-8 rounded-full bg-rose-500 text-white flex items-center justify-center font-bold text-base flex-shrink-0">
+                                <i class="fa-solid fa-xmark"></i>
+                            </div>
+                            <div>
+                                <h5 class="font-bold text-rose-900 text-base">Not quite! Try Again with Detective Tip:</h5>
+                                <p class="text-xs text-rose-800 mt-1">${q.explanation || 'Tap "Highlight Keywords" to locate the right clue in the passage!'}</p>
+                            </div>
+                        </div>
+                    `;
+                }
+            }
+
+            prevQuestion() {
+                if (this.activeQuestionIdx > 0) {
+                    this.activeQuestionIdx--;
+                    this.highlightedLine = null;
+                    document.getElementById('app-container').innerHTML = this.renderPracticeView(this.currentTextId);
+                }
+            }
+
+            nextQuestion(textId) {
+                const textData = CHAPTERS_DATA.find(t => t.id === textId);
+                if (this.activeQuestionIdx < textData.questions.length - 1) {
+                    this.activeQuestionIdx++;
+                    this.highlightedLine = null;
+                    document.getElementById('app-container').innerHTML = this.renderPracticeView(textId);
+                } else {
+                    // Completed text mission!
+                    if (!this.completedTexts.includes(textId)) {
+                        this.completedTexts.push(textId);
+                        this.addStars(10); // Completion bonus
+                        this.updateBadgeState();
+                    }
+                    this.showCompletionModal(textData);
+                }
+            }
+
+            // Show Text Mission Completed Popup Modal
+            showCompletionModal(textData) {
+                sfx.playCorrect();
+                confetti({ particleCount: 100, spread: 80, origin: { y: 0.5 } });
+
+                const modalHtml = `
+                    <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                        <div class="bg-white rounded-3xl p-6 md:p-8 max-w-md w-full border-4 border-amber-300 shadow-2xl text-center space-y-5 animate-bounce-in">
+                            <div class="w-20 h-20 bg-amber-100 text-amber-500 rounded-full flex items-center justify-center mx-auto text-4xl shadow-inner">
+                                <i class="fa-solid fa-trophy"></i>
+                            </div>
+                            <div>
+                                <span class="bg-amber-100 text-amber-800 text-xs font-bold px-3 py-1 rounded-full uppercase">Mission Accomplished!</span>
+                                <h3 class="text-2xl font-extrabold text-slate-900 mt-2">${textData.title}</h3>
+                                <p class="text-sm text-slate-600 mt-1">You earned +10 Bonus Stars for completing this reading mission!</p>
+                            </div>
+                            <div class="p-3 bg-indigo-50 rounded-2xl border border-indigo-100 text-xs text-indigo-900 font-bold flex items-center justify-center space-x-2">
+                                <i class="fa-solid fa-star text-amber-500 text-base"></i>
+                                <span>Total Stars: ${this.stars}</span>
+                            </div>
+                            <button onclick="app.navTo('dashboard')" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-2xl shadow-md transition">
+                                Return to Dashboard
+                            </button>
+                        </div>
+                    </div>
+                `;
+                const div = document.createElement('div');
+                div.id = 'completion-modal';
+                div.innerHTML = modalHtml;
+                document.body.appendChild(div);
+            }
+
+            // -------------------------------------------------------------
+            // WEB SPEECH API - READ ALOUD FEATURE
+            // -------------------------------------------------------------
+            readAloudText(textId) {
+                const textData = CHAPTERS_DATA.find(t => t.id === textId);
+                if (!('speechSynthesis' in window)) {
+                    alert('Text-to-speech is not supported in this browser.');
+                    return;
+                }
+
+                window.speechSynthesis.cancel(); // Stop current
+
+                const fullText = textData.lines.map(l => l.text).join(' ');
+                const utterance = new SpeechSynthesisUtterance(fullText);
+                utterance.rate = 0.85; // Slightly slower for primary students
+                utterance.pitch = 1.0;
+                utterance.lang = 'en-US';
+
+                window.speechSynthesis.speak(utterance);
+            }
+        }
+
+        // Initialize Global App Instance
+        let app;
+        window.onload = function() {
+            app = new ReadingApp();
+            app.init();
+        };
+    </script>
+</body>
+</html>
