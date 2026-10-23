@@ -54,11 +54,12 @@
             font-weight: 600;
         }
         .highlight-target {
-            background-color: #BAE6FD;
-            border: 2px solid #0284C7;
+            background-color: #BAE6FD !important;
+            border: 2px solid #0284C7 !important;
             padding: 2px 6px;
             border-radius: 6px;
             animation: pulse-glow 2s infinite;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
         }
         @keyframes pulse-glow {
             0%, 100% { box-shadow: 0 0 0 0 rgba(14, 165, 233, 0.4); }
@@ -88,13 +89,13 @@
             </div>
 
             <div class="flex items-center space-x-3 md:space-x-6">
-                <!-- Stars Counter -->
-                <div class="flex items-center bg-amber-50 border-2 border-amber-300 px-3 py-1.5 rounded-full shadow-inner">
+                <!-- Stars Counter (Clickable) -->
+                <div onclick="app.showStarsDetail()" class="cursor-pointer flex items-center bg-amber-50 border-2 border-amber-300 px-3 py-1.5 rounded-full shadow-inner hover:bg-amber-100 transition transform hover:scale-105" title="View Star Details">
                     <i class="fa-solid fa-star text-amber-500 text-lg mr-1.5 animate-bounce"></i>
                     <span id="star-count" class="font-bold text-amber-900 text-lg">0</span>
                 </div>
-                <!-- Badges Indicator -->
-                <div class="hidden sm:flex items-center bg-purple-50 border-2 border-purple-300 px-3 py-1.5 rounded-full">
+                <!-- Badges Indicator (Clickable) -->
+                <div onclick="app.showBadgesDetail()" class="cursor-pointer hidden sm:flex items-center bg-purple-50 border-2 border-purple-300 px-3 py-1.5 rounded-full hover:bg-purple-100 transition transform hover:scale-105" title="View Badge Details">
                     <i class="fa-solid fa-award text-purple-600 text-lg mr-1.5"></i>
                     <span id="badge-count" class="font-bold text-purple-900 text-sm">0/4 Badges</span>
                 </div>
@@ -781,6 +782,10 @@
             constructor() {
                 this.stars = parseInt(localStorage.getItem('detective_stars') || '0');
                 this.completedTexts = JSON.parse(localStorage.getItem('detective_completed') || '[]');
+                
+                // 記錄每個章節的星星詳細來源 { textId: { questionId: 2, bonus: 10 } }
+                this.starsRecord = JSON.parse(localStorage.getItem('detective_star_record') || '{}');
+                
                 this.currentView = 'dashboard';
                 this.currentTextId = null;
                 this.activeQuestionIdx = 0;
@@ -789,10 +794,10 @@
 
                 // Badges State
                 this.badges = [
-                    { id: 'kw_hunter', name: 'Keyword Hunter', desc: 'Find keywords in 3 questions', icon: 'fa-crosshairs', color: 'bg-amber-500', unlocked: false },
-                    { id: 'scanner', name: 'Text Scanner', desc: 'Locate 5 correct line numbers', icon: 'fa-eye', color: 'bg-blue-500', unlocked: false },
-                    { id: 'context', name: 'Context Master', desc: 'Solve 3 pronoun reference questions', icon: 'fa-link', color: 'bg-emerald-500', unlocked: false },
-                    { id: 'super_det', name: 'Super Detective', desc: 'Complete all 6 texts', icon: 'fa-crown', color: 'bg-purple-600', unlocked: false }
+                    { id: 'kw_hunter', name: 'Keyword Hunter', desc: 'Complete your first reading mission', icon: 'fa-crosshairs', color: 'bg-amber-500', unlocked: false, condition: 'Complete 1 Chapter' },
+                    { id: 'scanner', name: 'Text Scanner', desc: 'Complete 3 reading missions', icon: 'fa-eye', color: 'bg-blue-500', unlocked: false, condition: 'Complete 3 Chapters' },
+                    { id: 'context', name: 'Context Master', desc: 'Complete 5 reading missions', icon: 'fa-link', color: 'bg-emerald-500', unlocked: false, condition: 'Complete 5 Chapters' },
+                    { id: 'super_det', name: 'Super Detective', desc: 'Complete all 6 reading missions', icon: 'fa-crown', color: 'bg-purple-600', unlocked: false, condition: 'Complete all 6 Chapters' }
                 ];
                 this.updateBadgeState();
             }
@@ -806,15 +811,18 @@
                 document.getElementById('star-count').innerText = this.stars;
                 const count = this.badges.filter(b => b.unlocked).length;
                 document.getElementById('badge-count').innerText = `${count}/${this.badges.length} Badges`;
+                
                 localStorage.setItem('detective_stars', this.stars.toString());
                 localStorage.setItem('detective_completed', JSON.stringify(this.completedTexts));
+                localStorage.setItem('detective_star_record', JSON.stringify(this.starsRecord));
             }
 
             updateBadgeState() {
-                if (this.completedTexts.length >= 1) this.badges[0].unlocked = true;
-                if (this.completedTexts.length >= 3) this.badges[1].unlocked = true;
-                if (this.completedTexts.length >= 5) this.badges[2].unlocked = true;
-                if (this.completedTexts.length >= 6) this.badges[3].unlocked = true;
+                // 改為完全重算，確保重置時也能變回 false
+                this.badges[0].unlocked = this.completedTexts.length >= 1;
+                this.badges[1].unlocked = this.completedTexts.length >= 3;
+                this.badges[2].unlocked = this.completedTexts.length >= 5;
+                this.badges[3].unlocked = this.completedTexts.length >= 6;
             }
 
             toggleSound() {
@@ -824,18 +832,23 @@
                     icon.className = 'fa-solid fa-volume-high';
                 } else {
                     icon.className = 'fa-solid fa-volume-xmark text-red-500';
+                    // 🐛 FIX: 當關閉音效時，強制停止語音朗讀
+                    if ('speechSynthesis' in window) {
+                        window.speechSynthesis.cancel();
+                    }
                 }
-            }
-
-            addStars(count) {
-                this.stars += count;
-                sfx.playStar();
-                this.updateHeaderStats();
             }
 
             navTo(view, textId = null) {
                 this.currentView = view;
                 this.currentTextId = textId;
+                
+                const existingModal = document.getElementById('completion-modal');
+                if (existingModal) existingModal.remove();
+                
+                const infoModal = document.getElementById('info-modal');
+                if (infoModal) infoModal.remove();
+
                 const container = document.getElementById('app-container');
 
                 if (view === 'dashboard') {
@@ -849,6 +862,87 @@
                     container.innerHTML = this.renderPracticeView(textId);
                 }
                 window.scrollTo({ top: 0, behavior: 'smooth' });
+            }
+
+            // -------------------------------------------------------------
+            // STAR RECORD & RESET LOGIC
+            // -------------------------------------------------------------
+            
+            // 全部重置功能
+            resetAllStars() {
+                if (!confirm('Are you sure you want to reset ALL your stars and progress? This will clear all chapters.')) {
+                    return;
+                }
+                
+                // 清空所有數據
+                this.stars = 0;
+                this.completedTexts = [];
+                this.starsRecord = {};
+                
+                // 更新 UI
+                this.updateBadgeState();
+                this.updateHeaderStats();
+                
+                // 關閉彈出視窗
+                const infoModal = document.getElementById('info-modal');
+                if (infoModal) infoModal.remove();
+                
+                // 重新整理畫面
+                document.getElementById('app-container').innerHTML = this.renderDashboard();
+                
+                // 播放音效
+                sfx.playWrong();
+            }
+
+            // 答對題目時發放星星 (防重複)
+            awardQuestionStars(textId, questionId) {
+                if (!this.starsRecord[textId]) this.starsRecord[textId] = {};
+                if (!this.starsRecord[textId][questionId]) {
+                    this.starsRecord[textId][questionId] = 2;
+                    this.stars += 2;
+                    sfx.playStar();
+                    this.updateHeaderStats();
+                    return true;
+                }
+                return false;
+            }
+
+            // 完成章節時發放額外星星 (防重複)
+            awardCompletionBonus(textId) {
+                if (!this.starsRecord[textId]) this.starsRecord[textId] = {};
+                if (!this.starsRecord[textId].bonus) {
+                    this.starsRecord[textId].bonus = 10;
+                    this.stars += 10;
+                    this.updateHeaderStats();
+                    return true;
+                }
+                return false;
+            }
+
+            // 重置單一章節
+            resetChapter(textId, event) {
+                if (event) event.stopPropagation();
+
+                if (!confirm('Are you sure you want to reset this mission? Stars from this chapter will be deducted.')) {
+                    return;
+                }
+
+                let deductStars = 0;
+                if (this.starsRecord[textId]) {
+                    Object.values(this.starsRecord[textId]).forEach(val => {
+                        deductStars += val;
+                    });
+                    delete this.starsRecord[textId];
+                }
+                this.stars -= deductStars;
+
+                this.completedTexts = this.completedTexts.filter(id => id !== textId);
+                
+                this.updateBadgeState();
+                this.updateHeaderStats();
+                document.getElementById('app-container').innerHTML = this.renderDashboard();
+                
+                sfx.playWrong();
             }
 
             // -------------------------------------------------------------
@@ -921,7 +1015,7 @@
                                     const isDone = this.completedTexts.includes(text.id);
                                     return `
                                         <div onclick="app.navTo('practice', '${text.id}')" class="bg-white border-2 ${isDone ? 'border-emerald-400 bg-emerald-50/20' : 'border-slate-200'} hover:border-indigo-500 rounded-3xl p-5 shadow-sm hover:shadow-md transition cursor-pointer flex flex-col justify-between relative group">
-                                            ${isDone ? `<span class="absolute top-4 right-4 bg-emerald-500 text-white text-xs font-bold px-2.5 py-1 rounded-full"><i class="fa-solid fa-check mr-1"></i> Completed</span>` : ''}
+                                            ${isDone ? `<span class="absolute top-4 right-4 bg-emerald-500 text-white text-xs font-bold px-2.5 py-1 rounded-full shadow-sm"><i class="fa-solid fa-check mr-1"></i> Completed</span>` : ''}
                                             <div>
                                                 <div class="flex items-center space-x-3 mb-3">
                                                     <div class="w-10 h-10 rounded-2xl bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-lg group-hover:bg-indigo-600 group-hover:text-white transition">
@@ -936,7 +1030,14 @@
                                             </div>
                                             <div class="pt-3 border-t border-slate-100 flex items-center justify-between text-xs font-bold text-indigo-600">
                                                 <span>Start Reading Mission</span>
-                                                <i class="fa-solid fa-arrow-right transform group-hover:translate-x-1 transition"></i>
+                                                <div class="flex items-center space-x-3">
+                                                    ${isDone ? `
+                                                        <button onclick="app.resetChapter('${text.id}', event)" class="text-slate-400 hover:text-rose-500 transition-colors flex items-center space-x-1" title="Reset this chapter and deduct stars">
+                                                            <i class="fa-solid fa-rotate-left"></i> <span>Reset</span>
+                                                        </button>
+                                                    ` : ''}
+                                                    <i class="fa-solid fa-arrow-right transform group-hover:translate-x-1 transition"></i>
+                                                </div>
                                             </div>
                                         </div>
                                     `;
@@ -966,6 +1067,125 @@
                         </div>
                     </div>
                 `;
+            }
+
+            // -------------------------------------------------------------
+            // MODALS: STARS DETAIL & BADGES DETAIL
+            // -------------------------------------------------------------
+            showStarsDetail() {
+                const existing = document.getElementById('info-modal');
+                if (existing) existing.remove();
+
+                let contentHtml = '';
+                let totalRecordedStars = 0;
+
+                CHAPTERS_DATA.forEach(textData => {
+                    const record = this.starsRecord[textData.id] || {};
+                    const qStars = Object.keys(record).filter(k => k !== 'bonus').length * 2;
+                    const bonus = record.bonus || 0;
+                    const chapterTotal = qStars + bonus;
+
+                    if (chapterTotal > 0) {
+                        totalRecordedStars += chapterTotal;
+                        contentHtml += `
+                            <div class="mb-4 bg-slate-50 p-3 rounded-xl border border-slate-200">
+                                <div class="flex justify-between items-center mb-2 border-b border-slate-200 pb-2">
+                                    <span class="font-bold text-indigo-900 text-sm">${textData.title}</span>
+                                    <span class="font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full text-xs border border-amber-200">+${chapterTotal} ⭐</span>
+                                </div>
+                                <div class="space-y-1">
+                                    ${Object.keys(record).filter(k => k !== 'bonus').map(qId => {
+                                        const q = textData.questions.find(q => q.id === qId);
+                                        const qText = q ? (q.prompt.length > 25 ? q.prompt.substring(0, 25) + '...' : q.prompt) : qId;
+                                        return `<div class="flex justify-between text-xs text-slate-600"><span>Question: ${qText}</span> <span class="text-emerald-500 font-bold">+2</span></div>`;
+                                    }).join('')}
+                                    ${record.bonus ? `<div class="flex justify-between text-xs text-slate-600 mt-1 pt-1 border-t border-slate-100"><span>Completion Bonus</span> <span class="text-amber-500 font-bold">+10</span></div>` : ''}
+                                </div>
+                            </div>
+                        `;
+                    }
+                });
+
+                if (contentHtml === '') {
+                    contentHtml = `<div class="text-center text-slate-500 py-6">No stars earned yet. Start reading to collect stars! 🌟</div>`;
+                }
+
+                const modalHtml = `
+                    <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" onclick="if(event.target === this) this.remove()">
+                        <div class="bg-white rounded-3xl p-6 md:p-8 max-w-md w-full border-4 border-amber-300 shadow-2xl animate-bounce-in flex flex-col max-h-[85vh]">
+                            <div class="flex justify-between items-center mb-4 pb-3 border-b border-slate-100">
+                                <h3 class="text-xl font-extrabold text-slate-900 flex items-center">
+                                    <i class="fa-solid fa-star text-amber-500 mr-2"></i> My Stars Record
+                                </h3>
+                                <button onclick="document.getElementById('info-modal').remove()" class="text-slate-400 hover:text-rose-500 transition">
+                                    <i class="fa-solid fa-xmark text-xl"></i>
+                                </button>
+                            </div>
+                            <div class="overflow-y-auto flex-grow pr-2">
+                                ${contentHtml}
+                            </div>
+                            
+                            <!-- 重置按鈕區域 -->
+                            <div class="mt-4 pt-3 border-t border-slate-100 flex justify-between items-center">
+                                <div class="text-sm font-bold text-slate-800">
+                                    Total Stars: <span class="text-2xl text-amber-500 ml-1">${this.stars} ⭐</span>
+                                </div>
+                                <button onclick="app.resetAllStars()" class="text-xs bg-rose-100 text-rose-600 hover:bg-rose-200 px-3 py-1.5 rounded-lg transition font-bold flex items-center space-x-1">
+                                    <i class="fa-solid fa-rotate-left"></i> <span>Reset All</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                const div = document.createElement('div');
+                div.id = 'info-modal';
+                div.innerHTML = modalHtml;
+                document.body.appendChild(div);
+            }
+
+            showBadgesDetail() {
+                const existing = document.getElementById('info-modal');
+                if (existing) existing.remove();
+
+                const badgesHtml = this.badges.map(b => `
+                    <div class="flex items-center space-x-3 p-3 rounded-xl border ${b.unlocked ? 'bg-amber-50 border-amber-200' : 'bg-slate-50 border-slate-200'} mb-2">
+                        <div class="w-10 h-10 rounded-full ${b.unlocked ? b.color : 'bg-slate-300'} text-white flex items-center justify-center text-lg flex-shrink-0">
+                            <i class="fa-solid ${b.icon}"></i>
+                        </div>
+                        <div class="flex-grow">
+                            <h4 class="font-bold text-sm text-slate-900">${b.name}</h4>
+                            <p class="text-xs text-slate-500">${b.condition}</p>
+                        </div>
+                        <div>
+                            ${b.unlocked ? '<i class="fa-solid fa-circle-check text-emerald-500 text-xl"></i>' : '<i class="fa-solid fa-lock text-slate-400 text-lg"></i>'}
+                        </div>
+                    </div>
+                `).join('');
+
+                const modalHtml = `
+                    <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" onclick="if(event.target === this) this.remove()">
+                        <div class="bg-white rounded-3xl p-6 md:p-8 max-w-md w-full border-4 border-purple-300 shadow-2xl animate-bounce-in">
+                            <div class="flex justify-between items-center mb-4 pb-3 border-b border-slate-100">
+                                <h3 class="text-xl font-extrabold text-slate-900 flex items-center">
+                                    <i class="fa-solid fa-award text-purple-500 mr-2"></i> Badge Progress
+                                </h3>
+                                <button onclick="document.getElementById('info-modal').remove()" class="text-slate-400 hover:text-rose-500 transition">
+                                    <i class="fa-solid fa-xmark text-xl"></i>
+                                </button>
+                            </div>
+                            <div>
+                                ${badgesHtml}
+                            </div>
+                            <div class="mt-4 pt-3 border-t border-slate-100 text-center text-sm font-bold text-slate-800">
+                                Completed Chapters: <span class="text-indigo-600">${this.completedTexts.length} / 6</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                const div = document.createElement('div');
+                div.id = 'info-modal';
+                div.innerHTML = modalHtml;
+                document.body.appendChild(div);
             }
 
             // -------------------------------------------------------------
@@ -1192,7 +1412,7 @@
                             ${q.items.map((item, idx) => `
                                 <div class="flex items-center justify-between p-3 rounded-2xl border-2 border-slate-200 bg-slate-50/50">
                                     <span class="font-medium text-slate-800 text-sm pr-2">${item.text}</span>
-                                    <select id="ord_${idx}" class="border-2 border-indigo-200 rounded-xl px-3 py-1.5 font-bold text-indigo-900 bg-white focus:outline-none focus:border-indigo-500 text-sm">
+                                    <select id="ord_${idx}" data-line="${item.lineRef || ''}" onchange="app.highlightSpecificLine(this.dataset.line)" class="border-2 border-indigo-200 rounded-xl px-3 py-1.5 font-bold text-indigo-900 bg-white focus:outline-none focus:border-indigo-500 text-sm">
                                         <option value="">-</option>
                                         <option value="1">1</option>
                                         <option value="2">2</option>
@@ -1208,15 +1428,21 @@
                     return `
                         <div class="space-y-3">
                             <p class="text-xs text-slate-500">Match each location to its room code letter (A, B, C, or D):</p>
-                            ${q.items.map((item, idx) => `
+                            ${q.items.map((item, idx) => {
+                                let lineNum = item.lineRef;
+                                if (!lineNum && item.hint) {
+                                    const match = item.hint.match(/Line\s+(\d+)/i);
+                                    if (match) lineNum = match[1];
+                                }
+                                return `
                                 <div class="flex items-center justify-between p-3 rounded-2xl border-2 border-slate-200 bg-slate-50/50">
                                     <span class="font-bold text-indigo-900 text-sm">${item.label}</span>
-                                    <select id="match_${idx}" class="border-2 border-indigo-200 rounded-xl px-3 py-1.5 font-bold text-indigo-900 bg-white focus:outline-none focus:border-indigo-500 text-sm">
+                                    <select id="match_${idx}" data-line="${lineNum || ''}" onchange="app.highlightSpecificLine(this.dataset.line)" class="border-2 border-indigo-200 rounded-xl px-3 py-1.5 font-bold text-indigo-900 bg-white focus:outline-none focus:border-indigo-500 text-sm">
                                         <option value="">Choose Letter</option>
                                         ${Object.keys(q.optionsMap).map(k => `<option value="${k}">${k} - ${q.optionsMap[k]}</option>`).join('')}
                                     </select>
                                 </div>
-                            `).join('')}
+                            `}).join('')}
                         </div>
                     `;
                 }
@@ -1227,7 +1453,7 @@
                         <div class="p-4 rounded-2xl bg-indigo-50/50 border border-indigo-100 text-slate-800 text-base font-medium space-y-3">
                             <div>
                                 ${parts[0]}
-                                <input type="text" id="short_ans_0" class="border-b-2 border-indigo-600 bg-white px-3 py-1 rounded-lg text-indigo-900 font-bold focus:outline-none focus:ring-2 focus:ring-indigo-400 inline-block w-36 mx-1 text-center" placeholder="type word">
+                                <input type="text" id="short_ans_0" onfocus="app.highlightSpecificLine('${q.targetLine || ''}')" class="border-b-2 border-indigo-600 bg-white px-3 py-1 rounded-lg text-indigo-900 font-bold focus:outline-none focus:ring-2 focus:ring-indigo-400 inline-block w-36 mx-1 text-center" placeholder="type word">
                                 ${parts[1] || ''}
                             </div>
                         </div>
@@ -1237,7 +1463,7 @@
                 if (q.type === 'short_answer_double') {
                     return `
                         <div class="p-4 rounded-2xl bg-indigo-50/50 border border-indigo-100 text-slate-800 text-base font-medium leading-loose">
-                            ${q.template.replace('[INPUT1]', '<input type="text" id="short_ans_1" class="border-b-2 border-indigo-600 bg-white px-3 py-1 rounded-lg text-indigo-900 font-bold focus:outline-none focus:ring-2 focus:ring-indigo-400 inline-block w-28 mx-1 text-center" placeholder="word 1">').replace('[INPUT2]', '<input type="text" id="short_ans_2" class="border-b-2 border-indigo-600 bg-white px-3 py-1 rounded-lg text-indigo-900 font-bold focus:outline-none focus:ring-2 focus:ring-indigo-400 inline-block w-28 mx-1 text-center" placeholder="word 2">')}
+                            ${q.template.replace('[INPUT1]', `<input type="text" id="short_ans_1" onfocus="app.highlightSpecificLine('${q.targetLine || ''}')" class="border-b-2 border-indigo-600 bg-white px-3 py-1 rounded-lg text-indigo-900 font-bold focus:outline-none focus:ring-2 focus:ring-indigo-400 inline-block w-28 mx-1 text-center" placeholder="word 1">`).replace('[INPUT2]', `<input type="text" id="short_ans_2" onfocus="app.highlightSpecificLine('${q.targetLine || ''}')" class="border-b-2 border-indigo-600 bg-white px-3 py-1 rounded-lg text-indigo-900 font-bold focus:outline-none focus:ring-2 focus:ring-indigo-400 inline-block w-28 mx-1 text-center" placeholder="word 2">`)}
                         </div>
                     `;
                 }
@@ -1248,7 +1474,7 @@
                             ${q.items.map((item, idx) => `
                                 <div class="p-3 rounded-2xl border-2 border-slate-200 bg-slate-50/50 flex flex-col sm:flex-row sm:items-center justify-between space-y-2 sm:space-y-0">
                                     <span class="text-sm font-medium text-slate-800">${item.text}</span>
-                                    <select id="must_${idx}" class="border-2 border-indigo-200 rounded-xl px-3 py-1.5 font-bold text-indigo-900 bg-white focus:outline-none focus:border-indigo-500 text-sm">
+                                    <select id="must_${idx}" data-line="${item.lineRef || ''}" onchange="app.highlightSpecificLine(this.dataset.line)" class="border-2 border-indigo-200 rounded-xl px-3 py-1.5 font-bold text-indigo-900 bg-white focus:outline-none focus:border-indigo-500 text-sm">
                                         <option value="">Select word</option>
                                         <option value="must">must</option>
                                         <option value="mustn't">mustn't</option>
@@ -1267,11 +1493,11 @@
                                     <span class="text-sm font-medium text-slate-800">${item.action}</span>
                                     <div class="flex items-center space-x-4">
                                         <label class="inline-flex items-center cursor-pointer">
-                                            <input type="radio" name="mat_${idx}" value="must" class="w-4 h-4 text-emerald-600">
+                                            <input type="radio" name="mat_${idx}" value="must" data-line="${item.lineRef || ''}" onchange="app.highlightSpecificLine(this.dataset.line)" class="w-4 h-4 text-emerald-600">
                                             <span class="ml-1.5 text-xs font-bold text-emerald-700">must</span>
                                         </label>
                                         <label class="inline-flex items-center cursor-pointer">
-                                            <input type="radio" name="mat_${idx}" value="mustn't" class="w-4 h-4 text-rose-600">
+                                            <input type="radio" name="mat_${idx}" value="mustn't" data-line="${item.lineRef || ''}" onchange="app.highlightSpecificLine(this.dataset.line)" class="w-4 h-4 text-rose-600">
                                             <span class="ml-1.5 text-xs font-bold text-rose-700">mustn't</span>
                                         </label>
                                     </div>
@@ -1289,11 +1515,11 @@
                                     <span class="text-sm font-medium text-slate-800">${item.statement}</span>
                                     <div class="flex items-center space-x-3">
                                         <label class="inline-flex items-center px-3 py-1 rounded-xl border border-slate-300 bg-white cursor-pointer hover:bg-emerald-50">
-                                            <input type="radio" name="tf_${idx}" value="true" class="w-4 h-4 text-emerald-600">
+                                            <input type="radio" name="tf_${idx}" value="true" data-line="${item.lineRef || ''}" onchange="app.highlightSpecificLine(this.dataset.line)" class="w-4 h-4 text-emerald-600">
                                             <span class="ml-1.5 text-xs font-bold text-emerald-700">T (True)</span>
                                         </label>
                                         <label class="inline-flex items-center px-3 py-1 rounded-xl border border-slate-300 bg-white cursor-pointer hover:bg-rose-50">
-                                            <input type="radio" name="tf_${idx}" value="false" class="w-4 h-4 text-rose-600">
+                                            <input type="radio" name="tf_${idx}" value="false" data-line="${item.lineRef || ''}" onchange="app.highlightSpecificLine(this.dataset.line)" class="w-4 h-4 text-rose-600">
                                             <span class="ml-1.5 text-xs font-bold text-rose-700">F (False)</span>
                                         </label>
                                     </div>
@@ -1309,26 +1535,57 @@
             // -------------------------------------------------------------
             // DETECTIVE HELPER: HIGHLIGHTS LINE AND SHOWS COACH POPUP
             // -------------------------------------------------------------
+            
+            highlightSpecificLine(lineNum) {
+                if (!lineNum) return;
+                document.querySelectorAll('.highlight-target').forEach(el => el.classList.remove('highlight-target'));
+                
+                const lineElem = document.getElementById(`line-${lineNum}`);
+                if (lineElem) {
+                    this.highlightedLine = parseInt(lineNum); 
+                    lineElem.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    lineElem.classList.add('highlight-target');
+                }
+            }
+
             showDetectiveHint(textId, qIdx) {
                 const textData = CHAPTERS_DATA.find(t => t.id === textId);
                 const q = textData.questions[qIdx];
 
-                let lineToHighlight = q.targetLine;
-                if (!lineToHighlight && q.items && q.items[0] && q.items[0].lineRef) {
-                    lineToHighlight = q.items[0].lineRef;
+                let linesToHighlight = [];
+                if (q.targetLine) {
+                    linesToHighlight.push(q.targetLine);
+                }
+                
+                if (q.items) {
+                    q.items.forEach(item => {
+                        let line = item.lineRef;
+                        if (!line && item.hint) {
+                            const match = item.hint.match(/Line\s+(\d+)/i);
+                            if (match) line = parseInt(match[1]);
+                        }
+                        if (line && !linesToHighlight.includes(line)) {
+                            linesToHighlight.push(line);
+                        }
+                    });
                 }
 
-                if (lineToHighlight) {
-                    this.highlightedLine = lineToHighlight;
-                    // Re-render passage view highlight
-                    const lineElem = document.getElementById(`line-${lineToHighlight}`);
-                    if (lineElem) {
-                        lineElem.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                        lineElem.classList.add('highlight-target');
-                    }
+                document.querySelectorAll('.highlight-target').forEach(el => el.classList.remove('highlight-target'));
+
+                if (linesToHighlight.length > 0) {
+                    this.highlightedLine = linesToHighlight[0];
+                    
+                    linesToHighlight.forEach((lineNum, index) => {
+                        const lineElem = document.getElementById(`line-${lineNum}`);
+                        if (lineElem) {
+                            lineElem.classList.add('highlight-target');
+                            if (index === 0) {
+                                lineElem.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                            }
+                        }
+                    });
                 }
 
-                // Show strategy popup banner
                 const feedbackArea = document.getElementById('feedback-area');
                 feedbackArea.className = 'mt-4 p-4 rounded-2xl bg-amber-50 border-2 border-amber-300 text-amber-950 text-sm animate-fade-in block';
                 feedbackArea.innerHTML = `
@@ -1349,7 +1606,6 @@
                 const textData = CHAPTERS_DATA.find(t => t.id === textId);
                 const q = textData.questions[qIdx];
                 let isCorrect = false;
-                let userDetail = '';
 
                 if (q.type === 'mcq') {
                     const selected = document.querySelector('input[name="mcq_opt"]:checked');
@@ -1410,7 +1666,8 @@
                 if (isCorrect) {
                     sfx.playCorrect();
                     confetti({ particleCount: 40, spread: 60, origin: { y: 0.7 } });
-                    this.addStars(2);
+                    
+                    const isNewStar = this.awardQuestionStars(textId, q.id);
 
                     feedbackArea.className = 'mt-4 p-4 rounded-2xl bg-emerald-50 border-2 border-emerald-300 text-emerald-950 text-sm animate-fade-in';
                     feedbackArea.innerHTML = `
@@ -1419,7 +1676,7 @@
                                 <i class="fa-solid fa-check"></i>
                             </div>
                             <div>
-                                <h5 class="font-bold text-emerald-900 text-base">Great Job, Detective! (+2 Stars ⭐)</h5>
+                                <h5 class="font-bold text-emerald-900 text-base">Great Job, Detective! ${isNewStar ? '(+2 Stars ⭐)' : '(Already Earned ⭐)'}</h5>
                                 <p class="text-xs text-emerald-800 mt-1">${q.explanation || 'You spotted the correct answer using your reading skills!'}</p>
                             </div>
                         </div>
@@ -1457,17 +1714,18 @@
                     document.getElementById('app-container').innerHTML = this.renderPracticeView(textId);
                 } else {
                     // Completed text mission!
-                    if (!this.completedTexts.includes(textId)) {
+                    const isNewCompletion = !this.completedTexts.includes(textId);
+                    if (isNewCompletion) {
                         this.completedTexts.push(textId);
-                        this.addStars(10); // Completion bonus
                         this.updateBadgeState();
+                        this.awardCompletionBonus(textId);
                     }
-                    this.showCompletionModal(textData);
+                    this.showCompletionModal(textData, isNewCompletion);
                 }
             }
 
             // Show Text Mission Completed Popup Modal
-            showCompletionModal(textData) {
+            showCompletionModal(textData, isNewCompletion) {
                 sfx.playCorrect();
                 confetti({ particleCount: 100, spread: 80, origin: { y: 0.5 } });
 
@@ -1480,7 +1738,7 @@
                             <div>
                                 <span class="bg-amber-100 text-amber-800 text-xs font-bold px-3 py-1 rounded-full uppercase">Mission Accomplished!</span>
                                 <h3 class="text-2xl font-extrabold text-slate-900 mt-2">${textData.title}</h3>
-                                <p class="text-sm text-slate-600 mt-1">You earned +10 Bonus Stars for completing this reading mission!</p>
+                                <p class="text-sm text-slate-600 mt-1">${isNewCompletion ? 'You earned +10 Bonus Stars for completing this reading mission!' : 'You have already completed this mission.'}</p>
                             </div>
                             <div class="p-3 bg-indigo-50 rounded-2xl border border-indigo-100 text-xs text-indigo-900 font-bold flex items-center justify-center space-x-2">
                                 <i class="fa-solid fa-star text-amber-500 text-base"></i>
@@ -1502,17 +1760,22 @@
             // WEB SPEECH API - READ ALOUD FEATURE
             // -------------------------------------------------------------
             readAloudText(textId) {
+                if (!sfx.enabled) {
+                    alert("Sound is muted. Please turn on the sound to use Read Aloud.");
+                    return;
+                }
+
                 const textData = CHAPTERS_DATA.find(t => t.id === textId);
                 if (!('speechSynthesis' in window)) {
                     alert('Text-to-speech is not supported in this browser.');
                     return;
                 }
 
-                window.speechSynthesis.cancel(); // Stop current
+                window.speechSynthesis.cancel();
 
                 const fullText = textData.lines.map(l => l.text).join(' ');
                 const utterance = new SpeechSynthesisUtterance(fullText);
-                utterance.rate = 0.85; // Slightly slower for primary students
+                utterance.rate = 0.85;
                 utterance.pitch = 1.0;
                 utterance.lang = 'en-US';
 
